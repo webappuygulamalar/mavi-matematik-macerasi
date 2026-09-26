@@ -509,7 +509,11 @@
     releaseAllInput();
     dialog.showModal();
     syncControlsEnabled();
-    setTimeout(() => answerInput.focus({ preventScroll: true }), 50);
+    setTimeout(() => {
+      // Kullanıcı bu arada pencerede başka bir öğeye (ör. Tab ile bir tuşa) geçtiyse odağı geri çekme.
+      const active = document.activeElement;
+      if (!dialog.contains(active) || active === dialog) answerInput.focus({ preventScroll: true });
+    }, 50);
   }
 
   function isTouchUi() {

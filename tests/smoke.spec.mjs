@@ -354,6 +354,7 @@ test.describe("Ekran sayı tuş takımı", () => {
     await openGame(page);
     await startGame(page);
     await openQuestion(page);
+    await expect(page.locator("#answerInput")).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(page.locator('[data-digit="1"]')).toBeFocused();
     await page.keyboard.press("Enter");
