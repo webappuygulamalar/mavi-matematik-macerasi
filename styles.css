@@ -1,0 +1,1403 @@
+/* ==========================================================================
+   Mavi’nin Matematik Macerası — stil
+   Oyun dünyası canvas içinde 1280x720 mantıksal koordinatta kalır;
+   burada yalnızca görüntü ölçeklenir.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* Renkler */
+  --ink: #172a4a;
+  --ink-soft: #3d5374;
+  --paper: #fffdf5;
+  --paper-2: #eef9ff;
+  --sky: #2f8fe0;
+  --sky-light: #7fd4ff;
+  --sun: #ffb72b;
+  --sun-light: #ffd15c;
+  --sun-ink: #3a2600;
+  --berry: #e7354f;
+  --mint: #2fb89a;
+  --teal-ink: #1f6c78;
+  --line: rgba(23, 42, 74, 0.14);
+  --focus: #1459d9;
+
+  /* Ölçü sistemi */
+  --radius-s: 10px;
+  --radius-m: 16px;
+  --radius-l: 24px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --shadow-1: 0 4px 10px rgba(23, 42, 74, 0.14);
+  --shadow-2: 0 12px 32px rgba(23, 42, 74, 0.22);
+  --shadow-3: 0 24px 70px rgba(18, 30, 54, 0.32);
+  --press-depth: inset 0 -4px 0 rgba(0, 0, 0, 0.14);
+
+  --font: ui-rounded, "SF Pro Rounded", "Nunito", "Segoe UI Rounded", Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Görünür alan (mobil adres çubuğu için dvh, eski tarayıcılar için vh) */
+  --vh: 100vh;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+
+  font-family: var(--font);
+  color: var(--ink);
+  background: #6fc9f7;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --vh: 100dvh;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  height: var(--vh);
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(255, 247, 174, 0.88) 0 78px, transparent 80px),
+    linear-gradient(#76d5ff 0%, #c6f0ff 52%, #8fda72 52%, #4ea04b 100%);
+  background-color: #6fc9f7;
+}
+
+input {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+button {
+  font-family: inherit;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 1px 5px;
+  border: 1px solid rgba(23, 42, 74, 0.22);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.92em;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* ---------- Sahne ve oyun alanı ---------- */
+
+.stage {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);
+}
+
+.game-shell {
+  --avail-w: calc(100vw - var(--safe-l) - var(--safe-r));
+  --avail-h: calc(var(--vh) - var(--safe-t) - var(--safe-b));
+  position: relative;
+  width: min(var(--avail-w), calc(var(--avail-h) * 16 / 9));
+  height: min(var(--avail-h), calc(var(--avail-w) * 9 / 16));
+  background: #7fd7ff;
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+  touch-action: none;
+}
+
+@media (min-width: 1100px) and (min-height: 700px) {
+  .game-shell {
+    border-radius: var(--radius-m);
+  }
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #7fd7ff;
+  outline: none;
+  touch-action: none;
+}
+
+/* ---------- HUD ---------- */
+
+.hud {
+  position: absolute;
+  z-index: 5;
+  top: 16px;
+  left: 18px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.hud-group {
+  min-width: 92px;
+  height: 52px;
+  padding: 7px 14px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-m);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: var(--shadow-1);
+}
+
+.hud-icon {
+  display: none;
+}
+
+.hud-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+}
+
+.hud strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hearts {
+  display: flex !important;
+  gap: 4px;
+  align-items: center;
+  min-height: 24px;
+}
+
+.heart {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 2px 0 rgba(116, 24, 42, 0.16));
+}
+
+.heart::before {
+  content: "\2665";
+  color: var(--berry);
+  font-size: 24px;
+  line-height: 1;
+}
+
+/* Boş kalp sadece renkle değil, dış çizgi biçimiyle de ayrışır */
+.heart.empty::before {
+  content: "\2661";
+  color: #8b97a3;
+}
+
+.shield-pill.active {
+  background: rgba(214, 248, 255, 0.95);
+  border-color: #2cc4de;
+}
+
+.shield-pill.active strong::before {
+  content: "✓ ";
+  color: #0f8aa0;
+}
+
+/* ---------- Sağ üst düğmeler ---------- */
+
+.corner-actions {
+  position: absolute;
+  z-index: 6;
+  top: 16px;
+  right: 18px;
+  display: flex;
+  gap: 8px;
+}
+
+.icon-button {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: var(--shadow-1);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.icon-button:active {
+  transform: scale(0.94);
+}
+
+.sound-toggle .sound-off,
+.sound-muted .sound-toggle .sound-on {
+  display: none;
+}
+
+.sound-muted .sound-toggle .sound-off {
+  display: inline;
+}
+
+/* ---------- Klavye yardımı ---------- */
+
+.controls {
+  position: absolute;
+  z-index: 5;
+  right: 18px;
+  bottom: 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--ink);
+  pointer-events: none;
+}
+
+.controls span {
+  padding: 6px 10px;
+  border-radius: var(--radius-s);
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: var(--shadow-1);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.controls kbd {
+  font-size: 11px;
+}
+
+.is-touch .keyboard-help {
+  display: none;
+}
+
+/* ---------- Toast ---------- */
+
+.toast {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 13%;
+  min-width: 200px;
+  max-width: 80%;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--ink);
+  box-shadow: var(--shadow-1);
+  text-align: center;
+  font-weight: 900;
+  opacity: 0;
+  transform: translate(-50%, -10px);
+  transition: opacity 180ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* ---------- Dokunmatik kontroller ---------- */
+
+.touch-controls {
+  --tb: clamp(60px, 15vmin, 88px);
+  position: fixed;
+  z-index: 10;
+  inset: auto 0 0 0;
+  display: none;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding:
+    0
+    max(14px, calc(var(--safe-r) + 8px))
+    max(12px, calc(var(--safe-b) + 6px))
+    max(14px, calc(var(--safe-l) + 8px));
+  pointer-events: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: opacity 150ms ease;
+}
+
+.is-touch .touch-controls {
+  display: flex;
+}
+
+.touch-controls.is-disabled {
+  opacity: 0.3;
+}
+
+.touch-controls.is-disabled .touch-button {
+  pointer-events: none;
+}
+
+.dpad {
+  display: flex;
+  gap: 10px;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.touch-button {
+  position: relative;
+  width: var(--tb);
+  height: var(--tb);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  border-radius: 50%;
+  background: rgba(23, 42, 74, 0.26);
+  box-shadow: 0 6px 14px rgba(23, 42, 74, 0.18);
+  color: #fff;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: pointer;
+  transition: transform 80ms ease, background-color 80ms ease;
+}
+
+.touch-button svg {
+  width: 52%;
+  height: 52%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
+  pointer-events: none;
+}
+
+.touch-button.is-pressed {
+  background: rgba(255, 183, 43, 0.72);
+  border-color: #fff;
+  transform: scale(0.93);
+}
+
+.jump-button {
+  width: calc(var(--tb) * 1.22);
+  height: calc(var(--tb) * 1.22);
+  background: rgba(231, 53, 79, 0.34);
+}
+
+.jump-button svg {
+  width: 42%;
+  height: 42%;
+  margin-top: -10%;
+}
+
+.touch-label {
+  position: absolute;
+  bottom: 16%;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+/* ---------- Ortak düğmeler ---------- */
+
+.primary-button,
+.secondary-button {
+  min-height: 52px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--radius-m);
+  font-size: 17px;
+  font-weight: 900;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 80ms ease, background-color 120ms ease, box-shadow 80ms ease;
+}
+
+.primary-button {
+  background: var(--sun);
+  color: var(--sun-ink);
+  box-shadow: var(--press-depth), var(--shadow-1);
+}
+
+.primary-button:hover {
+  background: var(--sun-light);
+}
+
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: inset 0 0 0 2px var(--line), var(--shadow-1);
+}
+
+.secondary-button:hover {
+  background: var(--paper-2);
+}
+
+.primary-button:active,
+.secondary-button:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.14);
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.9);
+}
+
+input:focus-visible {
+  outline-offset: 1px;
+}
+
+.dialog-kicker {
+  display: inline-block;
+  margin: 0;
+  color: var(--teal-ink);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+dialog {
+  color: var(--ink);
+}
+
+/* ---------- Başlangıç ekranı ---------- */
+
+.start-dialog,
+.rotate-dialog {
+  width: 100vw;
+  height: var(--vh);
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: calc(var(--safe-t) + 12px) calc(var(--safe-r) + 12px) calc(var(--safe-b) + 12px) calc(var(--safe-l) + 12px);
+  border: 0;
+  background: transparent;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.start-dialog[open],
+.rotate-dialog[open] {
+  display: grid;
+  place-items: center;
+}
+
+.start-dialog::backdrop {
+  background: linear-gradient(180deg, rgba(47, 143, 224, 0.55), rgba(31, 108, 120, 0.45));
+}
+
+.start-card {
+  width: min(820px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: var(--space-5);
+  padding: 28px 32px;
+  border-radius: var(--radius-l);
+  background: var(--paper);
+  box-shadow: var(--shadow-3);
+}
+
+.start-hero {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 28%, #fff4a8 0 16%, transparent 17%),
+    linear-gradient(180deg, #7fd4ff 0 64%, #7fd765 64% 100%);
+  box-shadow: inset 0 0 0 6px rgba(255, 255, 255, 0.8), var(--shadow-1);
+  overflow: hidden;
+}
+
+.start-hero img {
+  width: auto;
+  height: 82%;
+  margin-top: 8%;
+  object-fit: contain;
+}
+
+.float-sym {
+  position: absolute;
+  font-size: clamp(22px, 5vmin, 38px);
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  -webkit-text-stroke: 0;
+  text-shadow: 0 3px 0 rgba(23, 42, 74, 0.18);
+  animation: bob 3.2s ease-in-out infinite;
+}
+
+.sym-plus {
+  top: 12%;
+  right: 16%;
+  color: #ff5d73;
+}
+
+.sym-times {
+  top: 40%;
+  right: 6%;
+  color: #7e66ff;
+  animation-delay: -1s;
+}
+
+.sym-minus {
+  top: 44%;
+  left: 8%;
+  color: #ff9f1c;
+  animation-delay: -2s;
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.start-title {
+  margin: 4px 0 10px;
+  font-size: clamp(28px, 4.4vw, 44px);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--sky);
+}
+
+.start-title span {
+  display: block;
+  color: var(--ink);
+}
+
+.start-help {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 12px;
+  color: var(--ink-soft);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.help-touch,
+.is-touch .help-keyboard {
+  display: none;
+}
+
+.is-touch .help-touch {
+  display: block;
+}
+
+.best-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fff2c7;
+  color: #6b4a00;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.best-score::before {
+  content: "🏆";
+}
+
+.start-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.start-actions .primary-button {
+  flex: 1 1 100%;
+  min-height: 60px;
+  font-size: 22px;
+}
+
+.start-actions .secondary-button {
+  flex: 1 1 0;
+  min-height: 48px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.install-hint {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-s);
+  background: var(--paper-2);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.install-hint svg {
+  width: 1.1em;
+  height: 1.1em;
+  vertical-align: -0.2em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+/* ---------- Yatay çevir uyarısı ---------- */
+
+.rotate-dialog::backdrop {
+  background: #2f8fe0;
+}
+
+.rotate-card {
+  max-width: 340px;
+  padding: 28px 24px;
+  border-radius: var(--radius-l);
+  background: var(--paper);
+  box-shadow: var(--shadow-3);
+  text-align: center;
+}
+
+.rotate-card h2 {
+  margin: 18px 0 8px;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.rotate-card p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.rotate-phone {
+  width: 54px;
+  height: 90px;
+  margin: 0 auto;
+  border: 5px solid var(--ink);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #7fd4ff 0 60%, #7fd765 60%);
+  animation: rotate-hint 2.4s ease-in-out infinite;
+}
+
+@keyframes rotate-hint {
+  0%, 20% { transform: rotate(0deg); }
+  50%, 80% { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* ---------- Soru ve oyun sonu pencereleri ---------- */
+
+.question-dialog,
+.game-over-dialog {
+  max-width: calc(100vw - 24px - var(--safe-l) - var(--safe-r));
+  max-height: calc(var(--vh) - 24px - var(--safe-t) - var(--safe-b));
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-l);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-3);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.question-dialog {
+  width: 680px;
+}
+
+.game-over-dialog {
+  width: 400px;
+}
+
+.question-dialog::backdrop,
+.game-over-dialog::backdrop {
+  background: rgba(23, 42, 74, 0.45);
+}
+
+.question-dialog form,
+.game-over-dialog form {
+  padding: 26px 28px;
+}
+
+.question-main {
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 12px;
+}
+
+.question-text {
+  margin: 0;
+  font-size: 54px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.question-timer {
+  width: 100%;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #d8e4e8;
+  border: 1px solid rgba(49, 82, 98, 0.16);
+}
+
+#questionTimerFill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #36c57c, #ffd044, #ef4d5d);
+  transition: width 120ms linear;
+}
+
+.question-time-text {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 900;
+  text-align: right;
+}
+
+.question-dialog label,
+.game-over-dialog label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.answer-row {
+  display: flex;
+  gap: 10px;
+}
+
+.answer-row input,
+.name-input {
+  min-width: 0;
+  height: 56px;
+  border: 2px solid #9ac7d1;
+  border-radius: var(--radius-m);
+  padding: 0 14px;
+  background: #fff;
+  color: var(--ink);
+  font-family: inherit;
+  font-weight: 900;
+  outline: 0;
+}
+
+.answer-row input {
+  flex: 1 1 140px;
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+.answer-row input:focus,
+.name-input:focus {
+  border-color: var(--sky);
+  box-shadow: 0 0 0 4px rgba(47, 143, 224, 0.2);
+}
+
+#questionFeedback {
+  min-height: 22px;
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+  font-weight: 800;
+}
+
+#questionFeedback.is-correct {
+  color: #137a45;
+}
+
+#questionFeedback.is-correct::before {
+  content: "✔ ";
+}
+
+#questionFeedback.is-wrong {
+  color: #b3263b;
+}
+
+#questionFeedback.is-wrong::before {
+  content: "✖ ";
+}
+
+/* ---------- Soru penceresi: bilgi + ekran içi sayı tuş takımı ---------- */
+
+.question-dialog form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 260px);
+  gap: 24px;
+  align-items: start;
+}
+
+.question-info {
+  min-width: 0;
+}
+
+.answer-row input {
+  width: 100%;
+  text-align: center;
+  font-size: 32px;
+  letter-spacing: 0.06em;
+}
+
+.answer-row input[readonly] {
+  caret-color: transparent;
+  cursor: default;
+}
+
+.numpad-area {
+  display: grid;
+  gap: 10px;
+}
+
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(48px, 1fr));
+  gap: 8px;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+
+.numpad-key {
+  min-width: 48px;
+  min-height: 56px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-m);
+  background: #fff;
+  color: var(--ink);
+  box-shadow: inset 0 0 0 2px var(--line), inset 0 -4px 0 rgba(23, 42, 74, 0.1);
+  font-size: 26px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: transform 60ms ease, background-color 80ms ease;
+}
+
+.numpad-key:hover {
+  background: var(--paper-2);
+}
+
+.numpad-key:active {
+  transform: translateY(2px);
+  background: #fff2c7;
+  box-shadow: inset 0 0 0 2px rgba(255, 183, 43, 0.9);
+}
+
+.numpad-clear,
+.numpad-delete {
+  background: #eef3f8;
+  color: var(--ink-soft);
+}
+
+.numpad-clear {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.numpad-delete svg {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.numpad-key:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+}
+
+.check-button {
+  width: 100%;
+  min-height: 60px;
+  font-size: 19px;
+}
+
+@media (max-width: 599px) {
+  .question-dialog form {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.game-over-dialog h2 {
+  margin: 6px 0 4px;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.game-over-dialog strong {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--ink);
+  font-size: 60px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.name-input {
+  width: 100%;
+  height: 50px;
+  margin-bottom: 6px;
+  font-size: 20px;
+}
+
+.saved-score-status {
+  min-height: 18px;
+  margin: 0 0 10px;
+  color: var(--teal-ink);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.game-over-dialog .primary-button {
+  width: 100%;
+}
+
+.scoreboard {
+  margin: 16px 0 0;
+  padding: 12px;
+  border: 1px solid rgba(31, 108, 120, 0.18);
+  border-radius: var(--radius-m);
+  background: rgba(232, 248, 251, 0.76);
+}
+
+.scoreboard h3 {
+  margin: 0 0 8px;
+  color: var(--teal-ink);
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.scoreboard ol {
+  min-height: 24px;
+  max-height: 128px;
+  margin: 0;
+  padding-left: 22px;
+  overflow: auto;
+}
+
+.scoreboard li {
+  margin: 2px 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.scoreboard .score-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* ==========================================================================
+   Orta boy ekranlar (tablet, küçük dizüstü): HUD kompakt, ikonlu
+   ========================================================================== */
+
+@media (max-width: 1179px), (max-height: 663px) {
+  .hud {
+    top: 10px;
+    left: 10px;
+    gap: 6px;
+  }
+
+  .hud-group {
+    min-width: 0;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    border-radius: 999px;
+  }
+
+  .hud-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .hud-icon {
+    display: inline;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  #scorePill .hud-icon {
+    color: #f0a000;
+    font-size: 19px;
+  }
+
+  .hud strong {
+    margin-top: 0;
+    font-size: 18px;
+  }
+
+  .hud-group:last-child strong::before {
+    content: "Sv. ";
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+
+  .hearts {
+    gap: 2px;
+    min-height: 0;
+  }
+
+  .heart {
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
+  }
+
+  .heart::before {
+    font-size: 19px;
+  }
+
+  .corner-actions {
+    top: 10px;
+    right: 10px;
+  }
+
+  .icon-button {
+    width: 44px;
+    height: 44px;
+    font-size: 19px;
+  }
+
+  .controls {
+    right: 10px;
+    bottom: 10px;
+  }
+}
+
+/* Telefon (yatay): HUD 2x2 ızgara, boss can çubuğuyla çakışmaz */
+@media (max-width: 759px), (max-height: 427px) {
+  .hud {
+    top: 6px;
+    left: 6px;
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 4px;
+  }
+
+  .hud-group {
+    height: 30px;
+    padding: 0 9px;
+    gap: 4px;
+    border-width: 1.5px;
+  }
+
+  .hud strong {
+    font-size: 15px;
+  }
+
+  .hud-icon {
+    font-size: 13px;
+  }
+
+  #scorePill .hud-icon {
+    font-size: 15px;
+  }
+
+  .heart {
+    width: 15px;
+    height: 15px;
+    flex-basis: 15px;
+  }
+
+  .heart::before {
+    font-size: 16px;
+  }
+
+  .corner-actions {
+    top: 6px;
+    right: 6px;
+  }
+
+  .icon-button {
+    width: 40px;
+    height: 40px;
+    font-size: 17px;
+  }
+
+  .toast {
+    top: 20%;
+    min-width: 0;
+    padding: 6px 14px;
+    font-size: 14px;
+  }
+
+  .controls {
+    display: none;
+  }
+}
+
+/* Başlangıç ekranı: kısa ekranlar (telefon yatay) */
+@media (max-height: 560px) {
+  .start-card {
+    width: min(760px, 100%);
+    grid-template-columns: minmax(0, 0.62fr) minmax(0, 1.38fr);
+    gap: 18px;
+    padding: 16px 20px;
+  }
+
+  .start-title {
+    margin: 2px 0 6px;
+    font-size: clamp(22px, 7vh, 32px);
+  }
+
+  .start-help {
+    margin-bottom: 8px;
+    font-size: 13px;
+    gap: 2px;
+  }
+
+  .best-score {
+    margin-bottom: 8px;
+    padding: 4px 10px;
+    font-size: 13px;
+  }
+
+  .start-actions {
+    gap: 8px;
+  }
+
+  .start-actions .primary-button {
+    min-height: 54px;
+    font-size: 20px;
+  }
+
+  .start-actions .secondary-button {
+    min-height: 44px;
+    font-size: 14px;
+    padding: 0 14px;
+  }
+
+  .install-hint {
+    margin-top: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .start-card {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+
+  .start-hero {
+    width: 120px;
+    margin: 0 auto;
+  }
+}
+
+/* Soru ve oyun sonu: kısa ekranlarda (yatay telefon) üste hizalı, sıkı düzen.
+   Sayı tuş takımı ve "Cevabı Kontrol Et" düğmesi ekranda tamamen görünür kalır. */
+@media (max-height: 560px) {
+  .question-dialog,
+  .game-over-dialog {
+    margin: calc(var(--safe-t) + 8px) auto auto;
+    max-height: calc(var(--kb-vh, var(--vh)) - 16px - var(--safe-t));
+  }
+
+  .question-dialog {
+    width: min(640px, calc(100vw - 24px - var(--safe-l) - var(--safe-r)));
+  }
+
+  .question-dialog form {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 240px);
+    gap: 16px;
+    padding: 12px 16px;
+  }
+
+  .question-main {
+    gap: 8px;
+    margin: 2px 0 8px;
+  }
+
+  .question-text {
+    font-size: 38px;
+  }
+
+  .question-dialog label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .answer-row input {
+    height: 52px;
+  }
+
+  .numpad-area {
+    gap: 8px;
+  }
+
+  .numpad {
+    gap: 6px;
+  }
+
+  .numpad-key {
+    min-height: 48px;
+    font-size: 22px;
+  }
+
+  .numpad-clear {
+    font-size: 13px;
+  }
+
+  .check-button {
+    min-height: 52px;
+    font-size: 17px;
+  }
+
+  #questionFeedback {
+    min-height: 18px;
+    margin-top: 6px;
+    font-size: 14px;
+  }
+
+  .game-over-dialog {
+    width: min(640px, calc(100vw - 24px - var(--safe-l) - var(--safe-r)));
+  }
+
+  .game-over-dialog form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+    padding: 14px 18px;
+  }
+
+  .game-over-dialog h2 {
+    font-size: 24px;
+  }
+
+  .game-over-dialog strong {
+    margin-bottom: 8px;
+    font-size: 44px;
+  }
+
+  .name-input {
+    height: 46px;
+  }
+
+  .scoreboard {
+    margin: 0;
+    align-self: stretch;
+  }
+
+  .scoreboard ol {
+    max-height: calc(var(--kb-vh, var(--vh)) - 110px);
+  }
+}
+
+/* ==========================================================================
+   Hareket azaltma tercihi
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .rotate-phone {
+    transform: rotate(-90deg);
+  }
+}

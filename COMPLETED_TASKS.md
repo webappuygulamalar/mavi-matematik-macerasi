@@ -1,0 +1,45 @@
+# Completed Tasks
+
+- Built a static web version that runs in a browser from `index.html`.
+- Implemented keyboard movement with left, right, and jump controls.
+- Implemented foot-aligned player physics and separate sprite rendering configuration.
+- Implemented platforms, upper platforms, and solid question boxes.
+- Implemented coins placed above platform tops with a 10px surface gap.
+- Implemented math question modal and one-time box state transition.
+- Implemented scoring rules: coin +10, correct answer +50, wrong answer +0.
+- Implemented 15-second shield effect, timer display, and 3-hit shield durability.
+- Implemented basic enemy patrols that stay inside configured bounds.
+- Implemented placeholder animation states through motion/bob/squash effects for idle, run, jump, fall, and enemy walk/idle.
+- Tuned jump height to make the first upper-platform layer easier to reach.
+- Retuned jump height after playtesting feedback for better upper-platform access.
+- Applied requested 1200 jump speed value for first-platform reachability.
+- Applied requested 1500 jump speed value for reachability testing.
+- Reduced jump speed to 900 after playtesting the stronger jump.
+- Replaced the numeric lives display with a three-heart HUD indicator.
+- Fixed heart HUD visibility and added the final score game-over screen.
+- Added stomp-to-defeat enemy interaction while preserving side-contact damage and shield behavior.
+- Extended the level route and added a finish flag.
+- Added level 2 transition with changed colors and 10% faster enemies.
+- Increased route length to 6000px and added extra late-level objects.
+- Added level 3 and level 4 progression with faster enemy speeds.
+- Added a 30-second question countdown bar.
+- Added persistent local top-10 score tracking with player names.
+- Increased jump speed to 1100 based on playtesting feedback.
+- Added procedural movement polish for the single-image player sprite.
+- Integrated the cleaned player sprite sheet for frame-based character animation.
+- Fixed idle stance platform alignment by using the original player image for standing still.
+- Added full heart refill on level transitions.
+- Added `Oyunu_Baslat.command` for one-click local launch on macOS.
+- Extended level length to 7500px.
+- Added end-of-level boss arena mechanics with fire, falling math boxes, rockets, and boss health.
+- Added cache-busting script version for the boss arena build.
+- Replaced the single fast boss rocket with a slower three-rocket diagonal salvo that still counts as one boss hit per correct answer.
+- Replaced the boss placeholder render with the supplied boss image using a cleaned transparent PNG.
+- Tuned boss fight difficulty: safer falling-box positions and 6 correct answers to defeat the boss.
+- Added shield durability so 3 protected enemy or boss-fire contacts disable the shield.
+- Restored boss-question shield duration to 10 seconds while preserving 3-hit shield durability.
+- Added separate boss visuals for levels 1 through 4.
+- Added a 3-second boss rocket cinematic that pauses boss fire and falling boxes.
+- Added fireworks and next-level messaging after boss defeat.
+- Improved `Oyunu_Baslat.command` to open Chrome directly, recover with alternate local ports, and close Terminal automatically after launch.
+- Added `Oyunu_Baslat_Windows.bat` for one-click Windows launch with Chrome/default-browser fallback.

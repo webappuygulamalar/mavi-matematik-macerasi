@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Mavi’nin Matematik Macerası</title>
+    <meta name="description" content="Mavi ile zıpla, altın topla ve matematik sorularını çözerek canavarları yen!">
+    <meta name="theme-color" content="#2f8fe0">
+    <meta name="color-scheme" content="light">
+    <meta name="application-name" content="Mavi Matematik">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mavi Matematik">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon-180.png">
+    <link rel="stylesheet" href="styles.css?v=pwa-1">
+  </head>
+  <body>
+    <main class="stage">
+      <div class="game-shell" id="gameShell" aria-label="Mavi’nin Matematik Macerası">
+        <h1 class="sr-only">Mavi’nin Matematik Macerası</h1>
+
+        <section class="hud" aria-label="Oyun bilgileri">
+          <div class="hud-group" id="scorePill">
+            <span class="hud-icon" aria-hidden="true">★</span>
+            <span class="hud-label">Puan</span>
+            <strong id="score">0</strong>
+          </div>
+          <div class="hud-group">
+            <span class="hud-label">Kalp</span>
+            <strong id="lives" class="hearts" role="img" aria-label="3 kalp"></strong>
+          </div>
+          <div class="hud-group shield-pill" id="shieldPill">
+            <span class="hud-icon" aria-hidden="true">🛡</span>
+            <span class="hud-label">Kalkan</span>
+            <strong id="shieldTimer">Pasif</strong>
+          </div>
+          <div class="hud-group">
+            <span class="hud-label">Seviye</span>
+            <strong id="levelText">1</strong>
+          </div>
+        </section>
+
+        <div class="corner-actions">
+          <button id="soundToggleGame" class="icon-button sound-toggle" type="button" aria-pressed="true" aria-label="Ses açık. Kapatmak için dokun.">
+            <span class="sound-on" aria-hidden="true">🔊</span>
+            <span class="sound-off" aria-hidden="true">🔇</span>
+          </button>
+        </div>
+
+        <canvas id="game" width="1280" height="720" tabindex="-1" aria-label="2D matematik platform oyunu"></canvas>
+
+        <section class="controls keyboard-help" aria-label="Klavye kontrolleri">
+          <span><kbd>A</kbd> / <kbd>←</kbd> Sol</span>
+          <span><kbd>D</kbd> / <kbd>→</kbd> Sağ</span>
+          <span><kbd>W</kbd> / <kbd>Boşluk</kbd> Zıpla</span>
+        </section>
+
+        <div id="toast" class="toast" role="status" aria-live="polite"></div>
+      </div>
+
+      <section class="touch-controls" id="touchControls" aria-label="Dokunmatik kontroller">
+        <div class="dpad" id="dpad" role="group" aria-label="Yön tuşları">
+          <button type="button" class="touch-button" data-action="left" aria-label="Sola git">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15.5 4.5 8 12l7.5 7.5"/></svg>
+          </button>
+          <button type="button" class="touch-button" data-action="right" aria-label="Sağa git">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.5 4.5 16 12l-7.5 7.5"/></svg>
+          </button>
+        </div>
+        <button type="button" class="touch-button jump-button" data-action="jump" aria-label="Zıpla">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 15.5 12 8l7.5 7.5"/></svg>
+          <span class="touch-label" aria-hidden="true">Zıpla</span>
+        </button>
+      </section>
+    </main>
+
+    <dialog id="startDialog" class="start-dialog" aria-labelledby="startTitle" aria-describedby="startHelpText">
+      <div class="start-card">
+        <div class="start-hero" aria-hidden="true">
+          <img src="assets/img/player.png" alt="" width="169" height="256" decoding="async">
+          <span class="float-sym sym-plus">+</span>
+          <span class="float-sym sym-times">×</span>
+          <span class="float-sym sym-minus">−</span>
+        </div>
+        <div class="start-content">
+          <p class="dialog-kicker">Eğlenceli matematik oyunu</p>
+          <h2 id="startTitle" class="start-title">Mavi’nin <span>Matematik Macerası</span></h2>
+          <p id="startHelpText" class="start-help">
+            <span class="help-keyboard">Hareket: <kbd>A</kbd> <kbd>D</kbd> veya oklar · Zıpla: <kbd>W</kbd> / <kbd>Boşluk</kbd></span>
+            <span class="help-touch">Sol alttaki oklarla yürü, sağ alttaki düğmeyle zıpla.</span>
+            <span class="help-common">Soru kutularına dokun, doğru cevapla kalkan kazan!</span>
+          </p>
+          <p class="best-score" id="bestScore" hidden>En iyi skor: <strong id="bestScoreValue">0</strong></p>
+          <div class="start-actions">
+            <button id="startButton" class="primary-button" type="button" autofocus>Oyuna Başla</button>
+            <button id="soundToggleStart" class="secondary-button sound-toggle" type="button" aria-pressed="true">
+              <span class="sound-on" aria-hidden="true">🔊</span>
+              <span class="sound-off" aria-hidden="true">🔇</span>
+              <span class="sound-toggle-text">Ses: Açık</span>
+            </button>
+            <button id="installButton" class="secondary-button install-button" type="button" hidden>
+              <span aria-hidden="true">⬇</span> Uygulamayı Yükle
+            </button>
+          </div>
+          <p id="iosInstallHint" class="install-hint" hidden>
+            Ana ekrana eklemek için: <strong>Paylaş</strong>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M6 11H5v10h14V11h-1"/></svg>
+            → <strong>Ana Ekrana Ekle</strong>
+          </p>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="rotateDialog" class="rotate-dialog" aria-labelledby="rotateTitle">
+      <div class="rotate-card">
+        <div class="rotate-phone" aria-hidden="true"></div>
+        <h2 id="rotateTitle">Cihazını yan çevir</h2>
+        <p>Mavi’nin macerası yatay ekranda daha rahat oynanır.</p>
+      </div>
+    </dialog>
+
+    <dialog id="questionDialog" class="question-dialog" aria-labelledby="questionText">
+      <form method="dialog" id="questionForm" novalidate>
+        <div class="question-info">
+          <span class="dialog-kicker">Matematik Kutusu</span>
+          <div class="question-main">
+            <h2 id="questionText" class="question-text">13 + 22</h2>
+            <div class="question-side">
+              <div class="question-timer" role="progressbar" aria-label="Soru süresi" aria-valuemin="0" aria-valuemax="30" aria-valuenow="30">
+                <div id="questionTimerFill"></div>
+              </div>
+              <span id="questionTimerText" class="question-time-text">30 sn</span>
+            </div>
+          </div>
+          <label for="answerInput">Cevap</label>
+          <div class="answer-row">
+            <input id="answerInput" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="4" aria-describedby="questionFeedback">
+          </div>
+          <p id="questionFeedback" role="status" aria-live="polite"></p>
+        </div>
+        <div class="numpad-area">
+          <div class="numpad" id="numpad" role="group" aria-label="Sayı tuş takımı">
+            <button type="button" class="numpad-key" data-digit="1" aria-label="1">1</button>
+            <button type="button" class="numpad-key" data-digit="2" aria-label="2">2</button>
+            <button type="button" class="numpad-key" data-digit="3" aria-label="3">3</button>
+            <button type="button" class="numpad-key" data-digit="4" aria-label="4">4</button>
+            <button type="button" class="numpad-key" data-digit="5" aria-label="5">5</button>
+            <button type="button" class="numpad-key" data-digit="6" aria-label="6">6</button>
+            <button type="button" class="numpad-key" data-digit="7" aria-label="7">7</button>
+            <button type="button" class="numpad-key" data-digit="8" aria-label="8">8</button>
+            <button type="button" class="numpad-key" data-digit="9" aria-label="9">9</button>
+            <button type="button" class="numpad-key numpad-clear" data-numpad="clear" aria-label="Cevabı temizle">Temizle</button>
+            <button type="button" class="numpad-key" data-digit="0" aria-label="0">0</button>
+            <button type="button" class="numpad-key numpad-delete" data-numpad="delete" aria-label="Son rakamı sil">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5h11v14H9l-6-7z"/><path d="m12.5 9.5 5 5m0-5-5 5"/></svg>
+            </button>
+          </div>
+          <button id="answerButton" class="primary-button check-button" type="submit">Cevabı Kontrol Et</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="gameOverDialog" class="game-over-dialog" aria-labelledby="resultTitle">
+      <form method="dialog" id="gameOverForm">
+        <div class="result-main">
+          <span class="dialog-kicker" id="resultKicker">Oyun Bitti</span>
+          <h2 id="resultTitle">Skor</h2>
+          <strong id="finalScore">0</strong>
+          <label for="playerNameInput">Oyuncu Adı</label>
+          <input id="playerNameInput" class="name-input" type="text" maxlength="16" autocomplete="nickname" enterkeyhint="done" value="Oyuncu">
+          <p id="savedScoreStatus" class="saved-score-status" role="status" aria-live="polite"></p>
+          <button id="restartButton" class="primary-button" type="submit">Yeniden Başlat</button>
+        </div>
+        <section class="scoreboard" aria-labelledby="scoreboardTitle">
+          <h3 id="scoreboardTitle">En Yüksek 10</h3>
+          <ol id="highScoresList"></ol>
+        </section>
+      </form>
+    </dialog>
+
+    <script src="game.js?v=pwa-1"></script>
+    <script src="pwa.js?v=pwa-1"></script>
+  </body>
+</html>

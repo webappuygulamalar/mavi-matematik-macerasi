@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Yerel sunucu kalıntıları
+.mavi_server.log
+.mavi_server.pid
+
+# Yerel araç ayarları
+.claude/
+
+# Node / Playwright
+node_modules/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Yayın paketi (npm run build)
+dist/
+
+# Dahili çalışma belgeleri (public repoya konmaz)
+CODEX_HANDOFF.md

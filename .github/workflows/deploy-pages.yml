@@ -1,0 +1,71 @@
+# Test → build → GitHub Pages yayını.
+# Yayın yalnızca bütün testler geçerse yapılır ve Pages'e yalnızca dist/ içeriği gönderilir.
+# Etkinleştirmek için: GitHub'da repo → Settings → Pages → Source: "GitHub Actions".
+name: Test ve GitHub Pages yayını
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Testler
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - name: Hata raporunu sakla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-sonuclari
+          path: test-results/
+          retention-days: 7
+
+  build:
+    name: Yayın paketi
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/build.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
