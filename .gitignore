@@ -20,3 +20,6 @@ dist/
 
 # Dahili çalışma belgeleri (public repoya konmaz)
 CODEX_HANDOFF.md
+
+# Görsel karşılaştırma ekran görüntüleri (tools/visual-snapshots.mjs)
+visual-snapshots/
