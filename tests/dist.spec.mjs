@@ -47,6 +47,9 @@ test.describe("Yayın paketi (dist/)", () => {
     const allowed = /^(index\.html|styles\.css|level-data\.js|game\.js|pwa\.js|manifest\.webmanifest|service-worker\.js|build-info\.json|assets\/(img|icons)\/[\w.-]+\.png)$/;
     for (const f of files) expect(f, "izin verilmeyen dosya").toMatch(allowed);
     for (const f of listFiles(DIST)) expect(statSync(f).size, f).toBeLessThan(2 * 1024 * 1024);
+    // Toplam paket bütçesi: 4 MB
+    const total = listFiles(DIST).reduce((sum, f) => sum + statSync(f).size, 0);
+    expect(total, `dist toplamı ${(total / 1048576).toFixed(2)} MB`).toBeLessThanOrEqual(4 * 1024 * 1024);
     // Kök dizindeki orijinal 2048px görseller pakete girmez
     for (const original of ["enemy_boss.png", "enemy_boss_clean.png", "player_spritesheet.png", "roket.png"]) {
       expect(files).not.toContain(original);
@@ -110,8 +113,34 @@ test.describe("Yayın paketi (dist/)", () => {
       .map((f) => BASE_PATH + f);
     expect(cache.urls).toEqual(expect.arrayContaining(expected));
 
+    // Çevrimdışı Devam Et: kayıtlı Seviye 2 önbellekten açılır
+    await page.evaluate(() => localStorage.setItem("mavi-matematik-save", JSON.stringify({ version: 1, level: 2, score: 270, totalStats: { coins: 2, questions: 2, correct: 1 }, savedAt: "2026-09-26T10:00:00Z" })));
     await context.setOffline(true);
     await page.reload();
+    await expect(page.locator("#continueButton")).toBeVisible();
+    await page.locator("#continueButton").tap();
+    await page.locator("#levelIntro").tap();
+    await expect.poll(() => page.evaluate(() => window.__MAVI_GAME__.player.grounded)).toBe(true);
+    expect(await page.evaluate(() => ({ level: window.__MAVI_GAME__.state.level, score: window.__MAVI_GAME__.state.score }))).toEqual({ level: 2, score: 270 });
+
+    // Çevrimdışı dört seviye: her biri açılır, bütün görseller önbellekten yüklenir
+    const swSource = readFileSync(join(DIST, "service-worker.js"), "utf8");
+    const imageList = [...swSource.matchAll(/"\.\/(assets\/[^"]+\.png)"/g)].map((m) => m[1]);
+    expect(imageList.length).toBeGreaterThanOrEqual(13);
+    for (const level of [1, 2, 3, 4]) {
+      await page.goto(`./?level=${level}&autostart=1`);
+      await expect.poll(() => page.evaluate(() => window.__MAVI_GAME__ && window.__MAVI_GAME__.state.level)).toBe(level);
+      const imgs = await page.evaluate(async (list) => {
+        const res = await Promise.all(list.map((p) => fetch(p).then((r) => r.ok && r.headers.get("content-type").includes("png"), () => false)));
+        const broken = [...document.images].filter((i) => !i.complete || i.naturalWidth === 0).map((i) => i.src);
+        return { allOk: res.every(Boolean), broken };
+      }, imageList);
+      expect(imgs, `Seviye ${level} çevrimdışı görseller`).toEqual({ allOk: true, broken: [] });
+    }
+
+    // Yeni macera (kayıt varken Yeni Macera onay ister; bu adım kayıtsız başlar)
+    await page.evaluate(() => localStorage.removeItem("mavi-matematik-save"));
+    await page.goto("./");
     await expect(page.locator("#startDialog")).toBeVisible();
     await page.locator("#startButton").tap();
     await expect(page.locator("#startDialog")).toBeHidden();
@@ -187,6 +216,14 @@ test.describe("Yayın paketi (dist/)", () => {
       expect(oldCaches.length).toBe(1);
       const banner = page.locator("#startDialog [data-update-banner]");
       await expect(banner).toBeHidden();
+      // Oyuncu verisi: kampanya kaydı, ayarlar ve top-10 güncellemeden sonra aynen kalmalı
+      await page.evaluate(() => {
+        localStorage.setItem("mavi-matematik-save", JSON.stringify({ version: 1, level: 3, score: 640, totalStats: { coins: 20, questions: 8, correct: 7 }, savedAt: "2026-09-26T10:00:00Z" }));
+        localStorage.setItem("mavi-matematik-settings", JSON.stringify({ version: 1, sound: false, motion: "reduced" }));
+        localStorage.setItem("mavi-matematik-sound", "off");
+        localStorage.setItem("mavi-matematik-high-scores", JSON.stringify([{ name: "Ada", score: 1500, level: 4, date: "2026-09-25T10:00:00Z" }]));
+      });
+      const storedBefore = await page.evaluate(() => ({ ...localStorage }));
 
       // Yeni sürüm yayınlandı
       unlinkSync(current);
@@ -214,6 +251,10 @@ test.describe("Yayın paketi (dist/)", () => {
       await expect.poll(cacheNames).toEqual([`${oldCaches[0]}-yeni`]);
       await expect(page.locator("#startDialog [data-update-banner]")).toBeHidden();
       expect(await page.evaluate(() => document.querySelector('script[src^="game.js"]') !== null)).toBe(true);
+      expect(await page.evaluate(() => ({ ...localStorage })), "güncelleme oyuncu verisini değiştirmemeli").toEqual(storedBefore);
+      await expect(page.locator("#saveInfoLevel")).toHaveText("Seviye 3 — Gün Batımı Kanyonu");
+      await expect(page.locator("html")).toHaveClass(/reduce-motion/);
+      await expect(page.locator("html")).toHaveClass(/sound-muted/);
       expect(errors).toEqual([]);
       await ctx.close();
     } finally {
