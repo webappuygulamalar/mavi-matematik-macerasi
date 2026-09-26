@@ -51,6 +51,21 @@
   const nextLevelButton = document.getElementById("nextLevelButton");
   const resultStats = document.getElementById("resultStats");
   const restartButton = document.getElementById("restartButton");
+  const stage = document.querySelector(".stage");
+  const pauseButton = document.getElementById("pauseButton");
+  const menuDialog = document.getElementById("menuDialog");
+  const menuPanels = Array.from(menuDialog.querySelectorAll(".menu-panel"));
+  const resumeButton = document.getElementById("resumeButton");
+  const mainMenuButton = document.getElementById("mainMenuButton");
+  const confirmNewButton = document.getElementById("confirmNewButton");
+  const confirmNewLevel = document.getElementById("confirmNewLevel");
+  const confirmRestartButton = document.getElementById("confirmRestartButton");
+  const continueButton = document.getElementById("continueButton");
+  const startActions = document.getElementById("startActions");
+  const saveInfo = document.getElementById("saveInfo");
+  const saveInfoLevel = document.getElementById("saveInfoLevel");
+  const gameOverMenuButton = document.getElementById("gameOverMenuButton");
+  const motionSegments = Array.from(document.querySelectorAll("[data-motion]"));
 
   const VIEW = { w: 1280, h: 720 };
   const WORLD = { w: 7500, h: 720 };
@@ -76,7 +91,11 @@
   const ROCKET_SALVO_COUNT = 3;
   const ROCKET_FLIGHT_SECONDS = 3;
   const HIGH_SCORE_KEY = "mavi-matematik-high-scores";
-  const SOUND_KEY = "mavi-matematik-sound";
+  const SOUND_KEY = "mavi-matematik-sound"; // eski anahtar (geriye dönük uyumluluk için okunur/yazılır)
+  const SETTINGS_KEY = "mavi-matematik-settings";
+  const SETTINGS_VERSION = 1;
+  const SAVE_KEY = "mavi-matematik-save";
+  const SAVE_VERSION = 1;
   // Kaynak sprite sheet 1664px genişliğinde ölçüldü; küçültülmüş kopyada kareler orantılı ölçeklenir.
   const SPRITE_SHEET_SOURCE_WIDTH = 1664;
   const MAX_RENDER_SCALE = 2;
@@ -107,6 +126,10 @@
   const jumpPointers = new Set();
   const stick = { pointerId: null, cx: 0, cy: 0, radius: 1, x: 0, y: 0 };
   const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  // Hareket efektleri: kullanıcı Ayarlar'da seçim yaptıysa o geçerli, yoksa sistem ayarı.
+  function isReducedMotion() {
+    return state.motionSetting ? state.motionSetting === "reduced" : reducedMotionQuery.matches;
+  }
   const portraitQuery = window.matchMedia("(orientation: portrait) and (hover: none) and (pointer: coarse)");
   /* Kısa, yumuşak, çocuk dostu WebAudio sesleri. Her olayın kendine özgü imzası vardır.
    * Her not: dalga tipi, başlangıç/bitiş frekansı (kayma), süre, ses düzeyi, başlama gecikmesi. */
@@ -145,7 +168,12 @@
   const state = {
     started: false,
     orientationBlocked: false,
-    soundEnabled: readStorage(SOUND_KEY) !== "off",
+    // Ayarlar (localStorage). motionSetting: null → sistem ayarı (prefers-reduced-motion) geçerli.
+    soundEnabled: loadSettings().sound,
+    motionSetting: loadSettings().motion,
+    menuPaused: false,
+    debugPrepared: false,
+    levelStart: { score: 0, totals: { coins: 0, questions: 0, correct: 0 } },
     renderScale: 1,
     score: 0,
     lives: 3,
@@ -653,7 +681,15 @@
     gameOverDialog.close();
     returnFocusToGame();
     syncControlsEnabled();
+    writeSave();
     showLevelIntro();
+  });
+
+  gameOverMenuButton.addEventListener("click", () => {
+    saveCurrentScore();
+    state.gameOver = false;
+    gameOverDialog.close();
+    returnToMainMenu();
   });
 
   // Esc veya Android geri tuşu soruyu/oyun sonunu yarıda kapatıp oyunu duraklatılmış bırakmasın.
@@ -689,6 +725,8 @@
   }
 
   function returnFocusToGame() {
+    // Önce pencere durumuna göre inert güncellenir; inert alandaki öğeye odak verilemez
+    syncControlsEnabled();
     if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
     canvas.focus({ preventScroll: true });
     // iOS klavye kapandıktan sonra sayfayı kaydırılmış bırakabiliyor.
@@ -704,6 +742,22 @@
   }
 
   window.addEventListener("keydown", (event) => {
+    // Duraklatma kısayolları: Escape veya P (yazı alanlarında değil)
+    if ((event.code === "Escape" || event.code === "KeyP") && !isTypingTarget(event.target) && !event.repeat) {
+      if (menuDialog.open) {
+        // Escape pencerenin cancel olayıyla işlenir; P yalnızca duraklatma panelinde devam ettirir
+        if (event.code === "KeyP" && currentPanel() === "pause") {
+          event.preventDefault();
+          resumeGame();
+        }
+        return;
+      }
+      if (isGameInteractive()) {
+        event.preventDefault();
+        openPause();
+        return;
+      }
+    }
     // Form alanları ve düğmeler kendi tuş davranışını korusun
     // (ör. oyuncu adında A, D, W, boşluk; düğmelerde Boşluk/Enter ile basma).
     if (isControlTarget(event.target)) return;
@@ -732,6 +786,8 @@
       !state.paused &&
       !state.introActive &&
       !state.summaryOpen &&
+      !state.menuPaused &&
+      !menuDialog.open &&
       !state.orientationBlocked &&
       !dialog.open &&
       !gameOverDialog.open
@@ -869,6 +925,10 @@
   function syncControlsEnabled() {
     const enabled = isGameInteractive();
     touchControls.classList.toggle("is-disabled", !enabled);
+    // Bir pencere açıkken oyun alanı ve kontroller dokunmadan ve erişilebilirlik ağacından çıkar
+    const modalOpen = [dialog, gameOverDialog, startDialog, rotateDialog, summaryDialog, menuDialog].some((d) => d.open);
+    stage.inert = modalOpen;
+    pauseButton.disabled = !enabled;
     if (!enabled) releaseAllInput();
   }
 
@@ -880,7 +940,10 @@
     window.screen.orientation.addEventListener("change", releaseAllInput);
   }
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) releaseAllInput();
+    if (!document.hidden) return;
+    releaseAllInput();
+    // Sekme gizlenince veya uygulama arka plana gidince oyun kendiliğinden duraklar
+    openPause();
   });
 
   // Dokunmatik cihaz tespiti: kaba işaretçi varsa ya da ilk dokunuş geldiğinde mobil kontrolleri göster.
@@ -913,6 +976,8 @@
 
   function update(dt) {
     if (!state.started || state.orientationBlocked) return;
+    // Duraklatma: fizik, düşmanlar, süreler, animasyon, kamera ve efektler donar
+    if (state.menuPaused) return;
     updateToast(dt);
     if (state.introActive) {
       state.introTimer -= dt;
@@ -1438,6 +1503,8 @@
     state.victoryPose = true;
     setPlayerAnimation("victory");
     resultTitle.textContent = "Macera Tamamlandı";
+    // Macera bitti: devam kaydı kapanır (top-10 skorları ayrı ve korunur)
+    clearSave();
     restartButton.textContent = "Yeniden Oyna";
     const t = state.totalStats;
     const accuracy = t.questions > 0 ? `Genel doğruluk: ${accuracyText(t.correct, t.questions)} (${t.correct}/${t.questions})` : "Hiç soru cevaplanmadı";
@@ -1544,6 +1611,8 @@
 
   function resetLevelStats() {
     state.levelStats = { coins: 0, questions: 0, correct: 0, scoreStart: state.score };
+    // Bölüm başlangıcı: "Bölümü Yeniden Başlat" ve kampanya kaydı bu anı kullanır
+    state.levelStart = { score: state.score, totals: { ...state.totalStats } };
   }
 
   function recordAnswer(correct) {
@@ -1621,6 +1690,7 @@
     resetPlayerPosition();
     state.paused = false;
     updateHud();
+    writeSave();
     showLevelIntro();
   }
 
@@ -1848,7 +1918,7 @@
     const a = player.anim;
     const def = PLAYER_ANIMATIONS[a.name] || PLAYER_ANIMATIONS.idle;
     const frame = PLAYER_FRAMES[a.frame] || PLAYER_FRAMES.idle;
-    const reduced = reducedMotionQuery.matches;
+    const reduced = isReducedMotion();
     let sx = 1;
     let sy = 1;
     if (a.name === "idle" && !reduced) {
@@ -2641,16 +2711,16 @@
   const SHAKE_MAX_PX = 3;
 
   function particleCap() {
-    return reducedMotionQuery.matches ? MAX_PARTICLES_REDUCED : MAX_PARTICLES;
+    return isReducedMotion() ? MAX_PARTICLES_REDUCED : MAX_PARTICLES;
   }
 
   function fireworkCap() {
-    return reducedMotionQuery.matches ? MAX_FIREWORKS_REDUCED : MAX_FIREWORKS;
+    return isReducedMotion() ? MAX_FIREWORKS_REDUCED : MAX_FIREWORKS;
   }
 
   // Hareket azaltma açıkken yoğun efektler seyreltilir.
   function fxIntensity() {
-    return reducedMotionQuery.matches ? 0.35 : 1;
+    return isReducedMotion() ? 0.35 : 1;
   }
 
   function pushParticle(p) {
@@ -2715,13 +2785,13 @@
   }
 
   function addRing(x, y, maxR, life, color) {
-    if (reducedMotionQuery.matches || state.fx.rings.length >= MAX_RINGS) return;
+    if (isReducedMotion() || state.fx.rings.length >= MAX_RINGS) return;
     state.fx.rings.push({ x, y, r: 8, maxR, life, maxLife: life, color });
   }
 
   function shakeScreen(strength, duration) {
     // Yalnızca özel anlarda, en fazla birkaç piksel; hareket azaltma açıkken hiç sallama yok.
-    if (reducedMotionQuery.matches) return;
+    if (isReducedMotion()) return;
     state.fx.shakeStrength = Math.min(SHAKE_MAX_PX, strength);
     state.fx.shakeDuration = duration;
     state.fx.shakeTime = duration;
@@ -3031,7 +3101,7 @@
     ctx.ellipse(cx, cy + 4, 47 * pulse, 60 * pulse, 0, -0.9, 1.1);
     ctx.stroke();
     // Enerji halkası: kalkanın çevresinde dönen iki kısa yay ve üç enerji noktası
-    const spin = reducedMotionQuery.matches ? 0 : t * 2.4;
+    const spin = isReducedMotion() ? 0 : t * 2.4;
     ctx.globalAlpha = 0.75;
     ctx.strokeStyle = "#a5f3fc";
     ctx.lineWidth = 3;
@@ -3056,7 +3126,7 @@
     const boss = state.boss;
     if (!boss.active && !boss.defeated) return;
     if (boss.defeated && boss.health <= 0) return;
-    const shakeX = boss.shake > 0 && !reducedMotionQuery.matches ? Math.sin(performance.now() / 22) * 8 * boss.shake : 0;
+    const shakeX = boss.shake > 0 && !isReducedMotion() ? Math.sin(state.fx.time * 45) * 8 * boss.shake : 0;
     const cx = boss.x + boss.w / 2 + shakeX;
     const foot = boss.y + boss.h;
     drawGroundShadow(cx, foot, 190);
@@ -3194,7 +3264,7 @@
   };
 
   function updateCamera(dt = 1 / 60) {
-    const reduced = reducedMotionQuery.matches;
+    const reduced = isReducedMotion();
     const speedRatio = Math.min(1, Math.abs(player.vx) / MOVE_SPEED);
     const lookTarget = reduced ? 0 : player.facing * speedRatio * CAMERA.lookAhead;
     state.cameraLook += (lookTarget - state.cameraLook) * (1 - Math.exp(-CAMERA.lookAheadRate * dt));
@@ -3269,7 +3339,7 @@
       `FPS: ${Math.round(state.fps)}`,
       `Parçacık: ${state.particles.length}/${particleCap()}  Fişek: ${state.fireworks.length}`,
       `Kamera: x=${Math.round(state.cameraX)} ileri=${Math.round(state.cameraLook)}`,
-      `Hareket azaltma: ${reducedMotionQuery.matches ? "açık" : "kapalı"}`
+      `Hareket azaltma: ${isReducedMotion() ? "açık" : "kapalı"}`
     ];
     ctx.save();
     ctx.fillStyle = "rgba(15, 23, 42, 0.78)";
@@ -3336,7 +3406,7 @@
 
   function drawFire(fire) {
     ctx.save();
-    const pulse = Math.sin(performance.now() / 80) * 4;
+    const pulse = Math.sin(state.fx.time * 12.5) * 4;
     ctx.fillStyle = "#ffb12b";
     ctx.beginPath();
     ctx.ellipse(fire.x + fire.w / 2, fire.y + fire.h / 2, fire.w / 2, fire.h / 2 + pulse, 0, 0, Math.PI * 2);
@@ -3353,7 +3423,7 @@
 
   // Roket görseli yüklenemezse eski prosedürel çizim kullanılır.
   function drawRocketProcedural(rocket) {
-    const pulse = 1 + Math.sin(performance.now() / 45 + rocket.salvoId) * 0.12;
+    const pulse = 1 + Math.sin(state.fx.time * 22 + rocket.salvoId) * 0.12;
     ctx.save();
     ctx.translate(rocket.x + rocket.w / 2, rocket.y + rocket.h / 2);
     ctx.rotate(rocket.angle);
@@ -3503,7 +3573,9 @@
     if (Number.isInteger(levelParam) && levelParam >= 1 && levelParam <= LEVELS.length && levelParam !== state.level) {
       state.level = levelParam;
       resetLevelEntities();
+      state.debugPrepared = true;
     }
+    if (params.get("boss") === "1") state.debugPrepared = true;
     if (params.get("boss") !== "1") return;
     player.x = BOSS_ARENA.start + 80;
     setFootY(player, BOSS_ARENA.floorY);
@@ -3555,13 +3627,13 @@
   for (const button of soundToggles) {
     button.addEventListener("click", () => {
       state.soundEnabled = !state.soundEnabled;
-      writeStorage(SOUND_KEY, state.soundEnabled ? "on" : "off");
+      saveSettings();
       applySoundUi();
       if (state.soundEnabled) {
         unlockAudio();
         sounds.coin();
       }
-      if (state.started && !dialog.open && !gameOverDialog.open) returnFocusToGame();
+      if (state.started && isGameInteractive()) returnFocusToGame();
     });
   }
 
@@ -3571,11 +3643,17 @@
     const best = loadHighScores()[0];
     bestScoreEl.hidden = !best;
     if (best) bestScoreValue.textContent = `${best.score} (${best.name})`;
+    const save = readSave();
+    continueButton.hidden = !save;
+    saveInfo.hidden = !save;
+    startActions.classList.toggle("has-save", Boolean(save));
+    if (save) saveInfoLevel.textContent = levelTitle(save.level);
     if (!startDialog.open) startDialog.showModal();
-    startButton.focus({ preventScroll: true });
+    (save ? continueButton : startButton).focus({ preventScroll: true });
     syncControlsEnabled();
   }
 
+  // Hazırlanmış durumu (seviye, skor) oyun olarak başlatır; her bölüm başında güvenli kayıt yazar.
   function startGame({ intro = true } = {}) {
     if (state.started) return;
     state.started = true;
@@ -3584,14 +3662,301 @@
     returnFocusToGame();
     syncControlsEnabled();
     updateOrientation();
+    writeSave();
     if (intro) showLevelIntro();
+  }
+
+  function newAdventure() {
+    // Debug URL'si (?level= / ?boss=) ile hazırlanan durum korunur
+    if (state.debugPrepared) {
+      state.debugPrepared = false;
+    } else {
+      resetGame();
+    }
+    startGame();
+  }
+
+  function continueAdventure() {
+    const save = readSave();
+    if (!save) {
+      newAdventure();
+      return;
+    }
+    state.debugPrepared = false;
+    state.level = save.level;
+    state.score = save.score;
+    state.totalStats = { ...save.totalStats };
+    state.lives = 3;
+    state.gameOver = false;
+    state.resultSaved = false;
+    state.bossCelebration = null;
+    state.fireworks = [];
+    resetLevelEntities();
+    resetPlayerPosition();
+    updateHud();
+    startGame();
+  }
+
+  function restartLevel() {
+    closeMenu();
+    state.menuPaused = false;
+    state.score = state.levelStart.score;
+    state.totalStats = { ...state.levelStart.totals };
+    state.lives = 3;
+    state.bossCelebration = null;
+    state.fireworks = [];
+    resetLevelEntities();
+    resetPlayerPosition();
+    updateHud();
+    writeSave();
+    showLevelIntro();
+  }
+
+  // Ana menüye dön: bölüm başı kaydı korunur (Devam Et ile aynı bölümün başından sürer).
+  function returnToMainMenu() {
+    closeMenu();
+    state.menuPaused = false;
+    state.started = false;
+    state.paused = false;
+    state.introActive = false;
+    levelIntro.hidden = true;
+    releaseAllInput();
+    showStartScreen();
   }
 
   startButton.addEventListener("click", () => {
     // Ses yalnızca kullanıcı etkileşimiyle açılır
     unlockAudio();
-    startGame();
+    const save = readSave();
+    if (save && !state.debugPrepared) {
+      confirmNewLevel.textContent = levelTitle(save.level);
+      openMenu("confirm-new", { returnFocus: startButton });
+      return;
+    }
+    newAdventure();
   });
+
+  continueButton.addEventListener("click", () => {
+    unlockAudio();
+    continueAdventure();
+  });
+
+  confirmNewButton.addEventListener("click", () => {
+    closeMenu();
+    clearSave();
+    newAdventure();
+  });
+
+  /* ---------- Duraklatma ---------- */
+
+  function openPause() {
+    if (!isGameInteractive()) return false;
+    state.menuPaused = true;
+    releaseAllInput();
+    openMenu("pause", { returnFocus: pauseButton });
+    return true;
+  }
+
+  function resumeGame() {
+    if (!state.menuPaused) return;
+    closeMenu({ restoreFocus: false });
+    state.menuPaused = false;
+    releaseAllInput();
+    state.lastTime = performance.now();
+    syncControlsEnabled();
+    returnFocusToGame();
+  }
+
+  pauseButton.addEventListener("click", () => {
+    unlockAudio();
+    openPause();
+  });
+  resumeButton.addEventListener("click", resumeGame);
+  mainMenuButton.addEventListener("click", returnToMainMenu);
+  confirmRestartButton.addEventListener("click", restartLevel);
+
+  /* ---------- Menü penceresi: paneller tek pencerede değişir (pencereler üst üste binmez) ---------- */
+
+  // Odak tuzağı: modal pencerede Tab/Shift+Tab son ve ilk öğe arasında döner, pencere dışına kaçmaz.
+  function trapFocus(container) {
+    container.addEventListener("keydown", (event) => {
+      if (event.key !== "Tab") return;
+      const focusables = Array.from(container.querySelectorAll("button, input, [tabindex]:not([tabindex='-1'])")).filter(
+        (el) => !el.disabled && el.getClientRects().length > 0 && !el.closest("[hidden]")
+      );
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !container.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+  }
+  for (const d of [menuDialog, startDialog, dialog, summaryDialog, gameOverDialog]) trapFocus(d);
+
+  const menuState = { stack: [], returnFocus: null };
+
+  function currentPanel() {
+    return menuState.stack[menuState.stack.length - 1] || null;
+  }
+
+  function showPanel(name) {
+    let section = null;
+    for (const panel of menuPanels) {
+      const active = panel.dataset.panel === name;
+      panel.hidden = !active;
+      if (active) section = panel;
+    }
+    menuDialog.setAttribute("aria-labelledby", section.querySelector(".menu-title").id);
+    if (name === "settings") applySettingsUi();
+    if (name === "install") document.dispatchEvent(new CustomEvent("mavi:install-help"));
+    // Yıkıcı onaylarda odak "Vazgeç"te başlar; diğerlerinde ilk düğmede
+    const target = name.startsWith("confirm") ? section.querySelector("[data-panel-back]") : section.querySelector("button:not([hidden])");
+    if (target) target.focus({ preventScroll: true });
+    menuDialog.scrollTop = 0;
+  }
+
+  function openMenu(name, { returnFocus = null } = {}) {
+    menuState.stack = [name];
+    menuState.returnFocus = returnFocus || document.activeElement;
+    if (!menuDialog.open) menuDialog.showModal();
+    showPanel(name);
+    syncControlsEnabled();
+  }
+
+  function pushPanel(name) {
+    menuState.stack.push(name);
+    showPanel(name);
+  }
+
+  function closeMenu({ restoreFocus = true } = {}) {
+    const back = menuState.returnFocus;
+    menuState.stack = [];
+    if (menuDialog.open) menuDialog.close();
+    syncControlsEnabled();
+    if (restoreFocus && back && back.isConnected && !back.closest("[inert]")) back.focus({ preventScroll: true });
+  }
+
+  function menuBack() {
+    if (menuState.stack.length > 1) {
+      menuState.stack.pop();
+      showPanel(currentPanel());
+    } else if (currentPanel() === "pause") {
+      resumeGame();
+    } else {
+      closeMenu();
+    }
+  }
+
+  document.addEventListener("click", (event) => {
+    const opener = event.target.closest("[data-open-panel]");
+    if (opener) {
+      if (menuDialog.open) pushPanel(opener.dataset.openPanel);
+      else openMenu(opener.dataset.openPanel, { returnFocus: opener });
+      return;
+    }
+    if (event.target.closest("[data-panel-back]")) menuBack();
+  });
+
+  menuDialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    menuBack();
+  });
+  menuDialog.addEventListener("close", () => {
+    if (menuState.stack.length) menuDialog.showModal();
+  });
+
+  /* ---------- Ayarlar ve kampanya kaydı (localStorage; bozuk veride sessizce varsayılana döner) ---------- */
+
+  function loadSettings() {
+    const fallback = { sound: readStorage(SOUND_KEY) !== "off", motion: null };
+    try {
+      const d = JSON.parse(readStorage(SETTINGS_KEY) || "null");
+      if (!d || d.version !== SETTINGS_VERSION) return fallback;
+      return {
+        sound: typeof d.sound === "boolean" ? d.sound : fallback.sound,
+        motion: d.motion === "normal" || d.motion === "reduced" ? d.motion : null
+      };
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  function saveSettings() {
+    writeStorage(SETTINGS_KEY, JSON.stringify({ version: SETTINGS_VERSION, sound: state.soundEnabled, motion: state.motionSetting }));
+    writeStorage(SOUND_KEY, state.soundEnabled ? "on" : "off");
+  }
+
+  function applyMotionUi() {
+    const reduced = isReducedMotion();
+    document.documentElement.classList.toggle("reduce-motion", reduced);
+    for (const seg of motionSegments) seg.setAttribute("aria-checked", String((seg.dataset.motion === "reduced") === reduced));
+  }
+
+  function applySettingsUi() {
+    applySoundUi();
+    applyMotionUi();
+  }
+
+  for (const seg of motionSegments) {
+    seg.addEventListener("click", () => {
+      state.motionSetting = seg.dataset.motion;
+      saveSettings();
+      applyMotionUi();
+    });
+  }
+  if (reducedMotionQuery.addEventListener) reducedMotionQuery.addEventListener("change", applyMotionUi);
+
+  function isValidTotals(t) {
+    return t && ["coins", "questions", "correct"].every((k) => Number.isInteger(t[k]) && t[k] >= 0) && t.correct <= t.questions;
+  }
+
+  // Kayıt yalnızca bölüm başlangıcında yazılır: seviye, o anki toplam skor ve genel istatistikler.
+  // Can, kalkan, efektler, joystick ve açık soru kaydedilmez.
+  function readSave() {
+    const raw = readStorage(SAVE_KEY);
+    if (!raw) return null;
+    try {
+      const d = JSON.parse(raw);
+      const valid =
+        d &&
+        d.version === SAVE_VERSION &&
+        Number.isInteger(d.level) &&
+        d.level >= 1 &&
+        d.level <= LEVELS.length &&
+        Number.isInteger(d.score) &&
+        d.score >= 0 &&
+        isValidTotals(d.totalStats);
+      return valid ? { level: d.level, score: d.score, totalStats: { ...d.totalStats } } : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeSave() {
+    writeStorage(
+      SAVE_KEY,
+      JSON.stringify({
+        version: SAVE_VERSION,
+        level: state.level,
+        score: state.levelStart.score,
+        totalStats: { ...state.levelStart.totals },
+        savedAt: new Date().toISOString()
+      })
+    );
+  }
+
+  function clearSave() {
+    try {
+      window.localStorage.removeItem(SAVE_KEY);
+    } catch (_) {
+      // Depolama kullanılamıyor: silinecek kayıt da yok
+    }
+  }
 
   /* ---------- Dikey kullanım uyarısı ---------- */
 
@@ -3653,6 +4018,7 @@
   setFootY(player, LEVEL_DATA.start.footY);
   applyDebugStart();
   applySoundUi();
+  applyMotionUi();
   updateHud();
   resizeCanvas();
   updateVisualViewport();
@@ -3684,7 +4050,7 @@
       return state.particles.length;
     },
     get reducedMotion() {
-      return reducedMotionQuery.matches;
+      return isReducedMotion();
     },
     visual: {
       PLAYER_FRAMES,
@@ -3727,6 +4093,11 @@
       },
       hideLevelIntro,
       proceedToNextLevel,
+      openPause,
+      resumeGame,
+      readSave,
+      currentPanel,
+      isReducedMotion,
       soundNames: Object.keys(SOUND_DEFS),
       soundDefs: SOUND_DEFS,
       audioUnlocked: () => sounds.isUnlocked(),

@@ -46,6 +46,9 @@
         </section>
 
         <div class="corner-actions">
+          <button id="pauseButton" class="icon-button pause-button" type="button" aria-label="Oyunu duraklat" aria-keyshortcuts="Escape P">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg>
+          </button>
           <button id="soundToggleGame" class="icon-button sound-toggle" type="button" aria-pressed="true" aria-label="Ses açık. Kapatmak için dokun.">
             <span class="sound-on" aria-hidden="true">🔊</span>
             <span class="sound-off" aria-hidden="true">🔇</span>
@@ -96,29 +99,111 @@
         <div class="start-content">
           <p class="dialog-kicker">Eğlenceli matematik oyunu</p>
           <h2 id="startTitle" class="start-title">Mavi’nin <span>Matematik Macerası</span></h2>
-          <p id="startHelpText" class="start-help">
-            <span class="help-keyboard">Hareket: <kbd>A</kbd> <kbd>D</kbd> veya oklar · Zıpla: <kbd>W</kbd> / <kbd>Boşluk</kbd></span>
-            <span class="help-touch">Sol alttaki çubuğu sürükleyerek yürü, sağ alttaki düğmeyle zıpla.</span>
-            <span class="help-common">Soru kutularına dokun, doğru cevapla kalkan kazan!</span>
-          </p>
+          <p id="startHelpText" class="start-help">Zıpla, altın topla, soruları çöz ve canavarları yen!</p>
           <p class="best-score" id="bestScore" hidden>En iyi skor: <strong id="bestScoreValue">0</strong></p>
-          <div class="start-actions">
-            <button id="startButton" class="primary-button" type="button" autofocus>Oyuna Başla</button>
-            <button id="soundToggleStart" class="secondary-button sound-toggle" type="button" aria-pressed="true">
-              <span class="sound-on" aria-hidden="true">🔊</span>
-              <span class="sound-off" aria-hidden="true">🔇</span>
-              <span class="sound-toggle-text">Ses: Açık</span>
-            </button>
-            <button id="installButton" class="secondary-button install-button" type="button" hidden>
-              <span aria-hidden="true">⬇</span> Uygulamayı Yükle
-            </button>
+          <p class="save-info" id="saveInfo" hidden>Kayıtlı ilerleme: <strong id="saveInfoLevel">Seviye 1</strong></p>
+          <div class="start-actions" id="startActions">
+            <button id="startButton" class="primary-button" type="button" autofocus>Yeni Macera</button>
+            <button id="continueButton" class="primary-button continue-button" type="button" hidden>Devam Et</button>
+            <div class="start-secondary">
+              <button id="howToButton" class="secondary-button" type="button" data-open-panel="howto">Nasıl Oynanır</button>
+              <button id="settingsButton" class="secondary-button" type="button" data-open-panel="settings">Ayarlar</button>
+              <button id="installButton" class="secondary-button install-button" type="button" hidden>
+                <span aria-hidden="true">⬇</span> Uygulamayı Yükle
+              </button>
+              <button id="installHelpButton" class="secondary-button" type="button" data-open-panel="install" hidden>Kurulum Yardımı</button>
+            </div>
           </div>
-          <p id="iosInstallHint" class="install-hint" hidden>
-            Ana ekrana eklemek için: <strong>Paylaş</strong>
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M6 11H5v10h14V11h-1"/></svg>
-            → <strong>Ana Ekrana Ekle</strong>
-          </p>
+          <div class="update-banner" data-update-banner role="status" hidden>
+            <span>Yeni sürüm hazır.</span>
+            <button class="primary-button" type="button" data-update-now>Şimdi Güncelle</button>
+            <button class="secondary-button" type="button" data-update-later>Sonra</button>
+          </div>
         </div>
+      </div>
+    </dialog>
+
+    <dialog id="menuDialog" class="menu-dialog" aria-labelledby="menuTitlePause">
+      <div class="menu-card">
+        <section class="menu-panel" data-panel="pause" hidden>
+          <h2 id="menuTitlePause" class="menu-title">Oyun duraklatıldı</h2>
+          <div class="menu-actions">
+            <button id="resumeButton" class="primary-button menu-wide" type="button">Devam Et</button>
+            <button id="restartLevelButton" class="secondary-button" type="button" data-open-panel="confirm-restart">Bölümü Yeniden Başlat</button>
+            <button class="secondary-button" type="button" data-open-panel="howto">Nasıl Oynanır</button>
+            <button class="secondary-button" type="button" data-open-panel="settings">Ayarlar</button>
+            <button id="mainMenuButton" class="secondary-button" type="button">Ana Menü</button>
+          </div>
+          <div class="update-banner" data-update-banner role="status" hidden>
+            <span>Yeni sürüm hazır.</span>
+            <button class="primary-button" type="button" data-update-now>Şimdi Güncelle</button>
+            <button class="secondary-button" type="button" data-update-later>Sonra</button>
+          </div>
+        </section>
+
+        <section class="menu-panel" data-panel="howto" hidden>
+          <h2 id="menuTitleHowto" class="menu-title">Nasıl Oynanır</h2>
+          <ul class="howto-list">
+            <li><span class="howto-icon" aria-hidden="true">🕹️</span><span><strong>Yürü:</strong> <span class="only-touch">sol alttaki yuvarlak çubuğu sağa veya sola sürükle.</span><span class="only-keyboard"><kbd>A</kbd> <kbd>D</kbd> veya ok tuşları.</span></span></li>
+            <li><span class="howto-icon" aria-hidden="true">⬆️</span><span><strong>Zıpla:</strong> <span class="only-touch">sağ alttaki Zıpla düğmesine dokun.</span><span class="only-keyboard"><kbd>W</kbd>, <kbd>↑</kbd> veya <kbd>Boşluk</kbd>.</span></span></li>
+            <li><span class="howto-icon" aria-hidden="true">❓</span><span><strong>Soru kutuları:</strong> altından zıplayıp kafanla vur, soruyu çöz.</span></li>
+            <li><span class="howto-icon" aria-hidden="true">🛡️</span><span><strong>Doğru cevap:</strong> +50 puan ve seni koruyan bir kalkan.</span></li>
+            <li><span class="howto-icon" aria-hidden="true">👟</span><span><strong>Canavarlar:</strong> üstlerine zıplayarak bas; önden çarpma.</span></li>
+            <li><span class="howto-icon" aria-hidden="true">🚀</span><span><strong>Boss:</strong> düşen kutulardaki soruyu doğru çöz, roketler boss'a gitsin.</span></li>
+            <li><span class="howto-icon" aria-hidden="true">📱</span><span><strong>Yatay ekran:</strong> oyun cihaz yan çevrilince en iyi görünür.</span></li>
+          </ul>
+          <button class="secondary-button menu-back" type="button" data-panel-back>Geri</button>
+        </section>
+
+        <section class="menu-panel" data-panel="settings" hidden>
+          <h2 id="menuTitleSettings" class="menu-title">Ayarlar</h2>
+          <div class="settings-list">
+            <div class="setting-row">
+              <span class="setting-label" id="soundSettingLabel">Ses</span>
+              <button id="soundToggleSettings" class="secondary-button sound-toggle" type="button" aria-pressed="true" aria-describedby="soundSettingLabel">
+                <span class="sound-on" aria-hidden="true">🔊</span>
+                <span class="sound-off" aria-hidden="true">🔇</span>
+                <span class="sound-toggle-text">Ses: Açık</span>
+              </button>
+            </div>
+            <div class="setting-row">
+              <span class="setting-label" id="motionSettingLabel">Hareket efektleri</span>
+              <div class="segmented" role="radiogroup" aria-labelledby="motionSettingLabel">
+                <button class="segment" type="button" role="radio" data-motion="normal" aria-checked="true">Normal</button>
+                <button class="segment" type="button" role="radio" data-motion="reduced" aria-checked="false">Azaltılmış</button>
+              </div>
+            </div>
+          </div>
+          <button class="secondary-button menu-back" type="button" data-panel-back>Geri</button>
+        </section>
+
+        <section class="menu-panel" data-panel="confirm-new" hidden>
+          <h2 id="menuTitleConfirmNew" class="menu-title">Yeni maceraya başlansın mı?</h2>
+          <p class="menu-text">Kayıtlı ilerlemen (<strong id="confirmNewLevel">Seviye 1</strong>) silinecek. Skor tablon ve ayarların korunur.</p>
+          <div class="menu-actions two">
+            <button id="confirmNewButton" class="primary-button" type="button">Evet, yeni macera</button>
+            <button class="secondary-button" type="button" data-panel-back>Vazgeç</button>
+          </div>
+        </section>
+
+        <section class="menu-panel" data-panel="confirm-restart" hidden>
+          <h2 id="menuTitleConfirmRestart" class="menu-title">Bölüm baştan başlasın mı?</h2>
+          <p class="menu-text">Bu bölümde kazandıkların sıfırlanır; bölüm başındaki skorun korunur.</p>
+          <div class="menu-actions two">
+            <button id="confirmRestartButton" class="primary-button" type="button">Evet, baştan başla</button>
+            <button class="secondary-button" type="button" data-panel-back>Vazgeç</button>
+          </div>
+        </section>
+
+        <section class="menu-panel" data-panel="install" hidden>
+          <h2 id="menuTitleInstall" class="menu-title">Kurulum Yardımı</h2>
+          <ul class="howto-list install-steps">
+            <li id="installStepAndroid"><span class="howto-icon" aria-hidden="true">🤖</span><span><strong>Android (Chrome):</strong> tarayıcı menüsü (⋮) → <strong>Uygulamayı yükle</strong> veya <strong>Ana ekrana ekle</strong>.</span></li>
+            <li id="installStepIos"><span class="howto-icon" aria-hidden="true">🍎</span><span><strong>iPhone / iPad (Safari):</strong> <strong>Paylaş</strong> düğmesi → <strong>Ana Ekrana Ekle</strong>.</span></li>
+          </ul>
+          <p class="menu-text small">Kurduktan sonra oyunu ana ekrandaki simgesinden aç. İlk açılıştan sonra internetsiz de oynanır.</p>
+          <button class="secondary-button menu-back" type="button" data-panel-back>Geri</button>
+        </section>
       </div>
     </dialog>
 
@@ -196,6 +281,7 @@
           <input id="playerNameInput" class="name-input" type="text" maxlength="16" autocomplete="nickname" enterkeyhint="done" value="Oyuncu">
           <p id="savedScoreStatus" class="saved-score-status" role="status" aria-live="polite"></p>
           <button id="restartButton" class="primary-button" type="submit">Yeniden Başlat</button>
+          <button id="gameOverMenuButton" class="secondary-button result-menu" type="button">Ana Menü</button>
         </div>
         <section class="scoreboard" aria-labelledby="scoreboardTitle">
           <h3 id="scoreboardTitle">En Yüksek 10</h3>

@@ -1319,6 +1319,271 @@ dialog {
   display: none;
 }
 
+/* ---------- Duraklat düğmesi ---------- */
+
+.pause-button {
+  order: 2;
+  color: var(--ink);
+}
+
+.pause-button svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+/* ---------- Başlangıç menüsü ---------- */
+
+.start-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.start-actions .primary-button {
+  grid-column: 1 / -1;
+  min-height: 56px;
+  font-size: 20px;
+}
+
+.start-actions.has-save .primary-button {
+  grid-column: auto;
+}
+
+.start-actions.has-save #continueButton {
+  order: -1;
+}
+
+.start-actions.has-save #startButton {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: inset 0 0 0 2px var(--line), var(--shadow-1);
+}
+
+.start-secondary {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.start-secondary .secondary-button {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 12px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.save-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #dff7e8;
+  color: #11593a;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.save-info::before {
+  content: "💾";
+}
+
+.update-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-m);
+  background: #fff2c7;
+  color: #5b4100;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.update-banner span {
+  flex: 1 1 120px;
+}
+
+.update-banner button {
+  min-height: 48px;
+  padding: 0 14px;
+  font-size: 15px;
+}
+
+/* ---------- Menü penceresi (duraklatma, nasıl oynanır, ayarlar, onay, kurulum) ---------- */
+
+.menu-dialog {
+  width: min(560px, calc(100vw - 24px - var(--safe-l) - var(--safe-r)));
+  max-height: calc(var(--vh) - 24px - var(--safe-t) - var(--safe-b));
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-l);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-3);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.menu-dialog::backdrop {
+  background: rgba(23, 42, 74, 0.5);
+}
+
+.menu-card {
+  padding: 22px 24px;
+}
+
+.menu-title {
+  margin: 0 0 14px;
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.menu-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.menu-actions .primary-button,
+.menu-actions .secondary-button,
+.menu-back {
+  min-height: 52px;
+  font-size: 17px;
+}
+
+.menu-actions.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.menu-back {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.menu-text {
+  margin: 0 0 16px;
+  color: var(--ink-soft);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.menu-text.small {
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+
+.howto-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.howto-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-m);
+  background: var(--paper-2);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.howto-icon {
+  flex: 0 0 auto;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.only-keyboard {
+  display: inline;
+}
+
+.only-touch,
+.is-touch .only-keyboard {
+  display: none;
+}
+
+.is-touch .only-touch {
+  display: inline;
+}
+
+.settings-list {
+  display: grid;
+  gap: 12px;
+}
+
+.setting-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-m);
+  background: var(--paper-2);
+}
+
+.setting-label {
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.setting-row .secondary-button {
+  min-height: 48px;
+  min-width: 150px;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: var(--radius-m);
+  background: #fff;
+  box-shadow: inset 0 0 0 2px var(--line);
+}
+
+.segment {
+  min-height: 48px;
+  min-width: 48px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.segment[aria-checked="true"] {
+  background: var(--sun);
+  color: var(--sun-ink);
+  box-shadow: var(--press-depth);
+}
+
+.install-steps .is-current {
+  box-shadow: inset 0 0 0 2px var(--sky);
+}
+
+.result-menu {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 8px;
+}
+
 /* ==========================================================================
    Orta boy ekranlar (tablet, küçük dizüstü): HUD kompakt, ikonlu
    ========================================================================== */
@@ -1392,8 +1657,8 @@ dialog {
   }
 
   .icon-button {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     font-size: 19px;
   }
 
@@ -1448,8 +1713,8 @@ dialog {
   }
 
   .icon-button {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     font-size: 17px;
   }
 
@@ -1501,7 +1766,7 @@ dialog {
   }
 
   .start-actions .secondary-button {
-    min-height: 44px;
+    min-height: 48px;
     font-size: 14px;
     padding: 0 14px;
   }
@@ -1667,26 +1932,103 @@ dialog {
   .level-intro-card {
     padding: 12px 20px;
   }
+
+  .menu-dialog {
+    width: min(720px, calc(100vw - 24px - var(--safe-l) - var(--safe-r)));
+    margin: calc(var(--safe-t) + 8px) auto auto;
+  }
+
+  .menu-card {
+    padding: 14px 18px;
+  }
+
+  .menu-title {
+    margin-bottom: 10px;
+    font-size: 21px;
+  }
+
+  .menu-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .menu-actions .menu-wide {
+    grid-column: 1 / -1;
+  }
+
+  .menu-actions .primary-button,
+  .menu-actions .secondary-button,
+  .menu-back {
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  .menu-back {
+    margin-top: 10px;
+  }
+
+  .howto-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .howto-list li {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .howto-icon {
+    font-size: 17px;
+  }
+
+  .menu-text {
+    margin-bottom: 12px;
+    font-size: 15px;
+  }
+
+  .start-actions .primary-button {
+    min-height: 52px;
+    font-size: 19px;
+  }
+
+  .start-actions {
+    gap: 8px;
+  }
+
+  .save-info {
+    margin-bottom: 8px;
+    padding: 4px 10px;
+    font-size: 13px;
+  }
+
+  .update-banner {
+    margin-top: 8px;
+    padding: 6px 10px;
+  }
+
+  .game-over-dialog .result-menu {
+    margin-top: 6px;
+  }
 }
 
 /* ==========================================================================
    Hareket azaltma tercihi
    ========================================================================== */
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+/* Kök öğedeki .reduce-motion sınıfı JS tarafından yönetilir: ilk varsayılan sistem ayarından
+   (prefers-reduced-motion) gelir, kullanıcının Ayarlar'daki seçimi sistem ayarının önüne geçer. */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
 
-  .rotate-phone {
-    transform: rotate(-90deg);
-  }
+.reduce-motion .rotate-phone {
+  transform: rotate(-90deg);
+}
 
-  .joystick-knob {
-    transition: none !important;
-  }
+.reduce-motion .joystick-knob {
+  transition: none !important;
 }
