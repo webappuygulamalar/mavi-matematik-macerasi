@@ -96,35 +96,50 @@ test.describe("Başlangıç ve yerleşim", () => {
     expect(await game(page, () => window.__MAVI_GAME__.state.lives)).toBe(3);
   });
 
-  test("oyun alanı taşmadan ekrana sığar ve 16:9 oranını korur", async ({ page, consoleErrors }) => {
+  // Sprint 3C.1 ürün kararı: sabit 16:9 yerine görüntü esnemeden ekranı dolduran uyarlanabilir görünüm.
+  test("görüntü esnemeden ekranı dolduran uyarlanabilir görünüm", async ({ page, consoleErrors }) => {
     await openGame(page);
     await startGame(page);
     const vp = page.viewportSize();
-    const box = await page.locator("#gameShell").boundingBox();
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.y).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(vp.width + 0.5);
-    expect(box.y + box.height).toBeLessThanOrEqual(vp.height + 0.5);
-    expect(Math.abs(box.width / box.height - 16 / 9)).toBeLessThan(0.02);
+    const m = await page.evaluate(() => {
+      const r = document.getElementById("game").getBoundingClientRect();
+      const g = window.__MAVI_GAME__;
+      const c = document.getElementById("game");
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, w: r.width, h: r.height, view: { ...g.view }, backingW: c.width, backingH: c.height, scale: g.state.renderScale };
+    });
+    // Mantıksal yükseklik 720; genişlik ekran oranından, 1280–1680 aralığında
+    expect(m.view.h).toBe(720);
+    expect(m.view.w).toBe(Math.round(Math.max(1280, Math.min(1680, (720 * vp.width) / vp.height))));
+    // Esneme yok: CSS oranı = mantıksal oran, X ve Y ölçeği eşit
+    expect(Math.abs(m.w / m.view.w - m.h / m.view.h)).toBeLessThan(0.002);
+    // Ekrana sığar; geniş ekranda dört kenar, dar ekranda yanlar tam dolu
+    expect(m.left).toBeGreaterThanOrEqual(-0.5);
+    expect(m.top).toBeGreaterThanOrEqual(-0.5);
+    expect(m.right).toBeLessThanOrEqual(vp.width + 0.5);
+    expect(m.bottom).toBeLessThanOrEqual(vp.height + 0.5);
+    expect(m.left).toBeLessThanOrEqual(1);
+    expect(vp.width - m.right).toBeLessThanOrEqual(1);
+    if (vp.width / vp.height >= 16 / 9) {
+      expect(m.top).toBeLessThanOrEqual(1);
+      expect(vp.height - m.bottom).toBeLessThanOrEqual(1);
+    }
     const scroll = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.scrollHeight]);
     expect(scroll[0]).toBeLessThanOrEqual(vp.width);
     expect(scroll[1]).toBeLessThanOrEqual(vp.height);
-    // Fizik koordinatları CSS ölçeğinden bağımsız: mantıksal dünya 1280x720 kalır.
-    const canvas = await page.evaluate(() => {
-      const c = document.getElementById("game");
-      return { w: c.width, h: c.height, scale: window.__MAVI_GAME__.state.renderScale };
-    });
-    expect(Math.round(canvas.w / canvas.scale)).toBe(1280);
-    expect(Math.round(canvas.h / canvas.scale)).toBe(720);
+    // Fizik koordinatları CSS ölçeğinden bağımsız: tuval arka belleği mantıksal görünümle orantılı
+    expect(Math.round(m.backingW / m.scale)).toBe(m.view.w);
+    expect(Math.round(m.backingH / m.scale)).toBe(720);
   });
 
   test("HUD görünür, boss çubuğu ve kontrollerle çakışmaz", async ({ page, consoleErrors }, testInfo) => {
     await openGame(page, "&boss=1&level=1");
     await startGame(page);
     const shell = await page.locator("#gameShell").boundingBox();
-    const scale = shell.width / 1280;
-    // Boss can çubuğu canvas'ta (500, 18, 380x48) mantıksal koordinatta çizilir.
-    const bossBar = { x: shell.x + 500 * scale, y: shell.y + 18 * scale, width: 380 * scale, height: 48 * scale };
+    const viewW = await game(page, () => window.__MAVI_GAME__.view.w);
+    const scale = shell.width / viewW;
+    // Boss can çubuğu canvas'ta 380x48, görünümün ortasında (1280 genişlikte x=500) çizilir.
+    const barX = 500 + (viewW - 1280) / 2;
+    const bossBar = { x: shell.x + barX * scale, y: shell.y + 18 * scale, width: 380 * scale, height: 48 * scale };
     const hud = await page.locator(".hud").boundingBox();
     for (const id of ["#score", "#lives", "#shieldTimer", "#levelText"]) {
       await expect(page.locator(id)).toBeVisible();

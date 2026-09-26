@@ -47,7 +47,8 @@ try {
           g.player.y = best.y - g.player.h;
           g.player.vx = 0;
           g.player.vy = 0;
-          g.state.cameraX = Math.max(0, Math.min(7500 - 1280, g.player.x - 1280 * 0.42));
+          const vw = g.view ? g.view.w : 1280;
+          g.state.cameraX = Math.max(0, Math.min(7500 - vw, g.player.x - vw * 0.42));
         }, x);
         await page.waitForTimeout(450);
         await page.screenshot({ path: join(outDir, `${name}-seviye${level}-x${String(x).padStart(4, "0")}.png`) });

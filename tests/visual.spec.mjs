@@ -373,7 +373,8 @@ test.describe("Efektler ve performans sınırları", () => {
     });
     await page.waitForTimeout(1500);
     const cam = await game(page, () => window.__MAVI_GAME__.state.cameraX);
-    expect(cam).toBeLessThanOrEqual(7500 - 1280 + 0.001);
+    const viewW = await game(page, () => window.__MAVI_GAME__.view.w);
+    expect(cam).toBeLessThanOrEqual(7500 - viewW + 0.001);
     expect(cam).toBeGreaterThanOrEqual(0);
   });
 });
