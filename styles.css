@@ -974,6 +974,36 @@ dialog {
   content: "✖ ";
 }
 
+/* Cevap geri bildirimi: doğru → yeşil-altın parlama, yanlış → yumuşak kırmızı */
+.question-dialog {
+  transition: box-shadow 200ms ease;
+}
+
+.question-dialog.answer-correct {
+  box-shadow: 0 0 0 4px rgba(126, 231, 135, 0.9), 0 0 38px 10px rgba(255, 209, 92, 0.55), var(--shadow-3);
+}
+
+.question-dialog.answer-correct .answer-row input {
+  border-color: #2fb36a;
+  background: #effcf2;
+}
+
+.question-dialog.answer-wrong {
+  box-shadow: 0 0 0 4px rgba(231, 53, 79, 0.55), 0 0 28px 6px rgba(231, 53, 79, 0.25), var(--shadow-3);
+}
+
+.question-dialog.answer-wrong .answer-row input {
+  border-color: #e7354f;
+  background: #fff3f4;
+  animation: answer-shake 260ms ease;
+}
+
+@keyframes answer-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
 /* ---------- Soru penceresi: bilgi + ekran içi sayı tuş takımı ---------- */
 
 .question-dialog form {

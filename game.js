@@ -144,6 +144,8 @@
     player: loadImage("assets/img/player.png"),
     playerSheet: loadImage("assets/img/player_spritesheet_clean.png"),
     enemy: loadImage("assets/img/enemy.png"),
+    // Kırmızı, mavi, yeşil roket gövdeleri (tools/prepare-rocket-sprites.mjs ile üretildi)
+    rockets: loadImage("assets/img/rockets.png"),
     bosses: [
       loadImage("assets/img/enemy_boss_clean.png"),
       loadImage("assets/img/enemy_boss_2_clean.png"),
@@ -181,7 +183,13 @@
     footstepTimer: 0,
     toastTimer: 0,
     lastTime: performance.now(),
-    debug: false
+    debug: new URLSearchParams(window.location.search).get("debug") === "1",
+    // Yalnızca görsel: kamera ileri bakış ofseti, efekt zamanlayıcıları, FPS ölçümü
+    cameraLook: 0,
+    victoryPose: false,
+    pendingAnswerFx: null,
+    fps: 60,
+    fx: { shakeTime: 0, shakeDuration: 0, shakeStrength: 0, rings: [], successGlow: 0, wrongPulse: 0, time: 0 }
   };
 
   const platforms = [
@@ -269,6 +277,8 @@
     shield: 0,
     shieldHits: 0,
     animTime: 0,
+    // Animasyon durum makinesi (yalnızca görsel; fizik değerlerini okumakla yetinir)
+    anim: createPlayerAnimState(),
     sprite: {
       image: assets.player,
       sheet: assets.playerSheet,
@@ -338,6 +348,9 @@
       facing: -1,
       animTime: 0,
       idlePulse: 0,
+      // Görsel: adım fazı ve oyuncu yaklaşınca tepki (0–1)
+      stepPhase: x * 0.013,
+      alert: 0,
       sprite: {
         image: assets.enemy,
         drawW: 88,
@@ -507,6 +520,9 @@
     questionText.textContent = box.question.text;
     questionText.setAttribute("aria-label", box.question.text.replace("×", "çarpı").replace("-", "eksi").replace("+", "artı"));
     setQuestionFeedback("", "");
+    dialog.classList.remove("answer-correct", "answer-wrong");
+    state.pendingAnswerFx = null;
+    spawnBoxHitFx(box);
     answerInput.value = "";
     // Dokunmatik cihazlarda sistem klavyesi açılmasın; cevap ekran tuş takımıyla girilir.
     // Alan yine odaklanabilir ve ekran okuyucular tarafından okunur.
@@ -602,6 +618,7 @@
     const given = Number(raw);
     if (given === state.currentQuestion.answer) {
       setQuestionFeedback("Doğru!", "correct");
+      showAnswerFx("correct");
       addScore(50, isBossQuestion ? "+50 ve 10 sn kalkan" : "+50 ve 15 sn kalkan");
       activateShield(isBossQuestion ? BOSS_SHIELD_SECONDS : SHIELD_SECONDS);
       completeBox(activeBox);
@@ -612,6 +629,7 @@
       closeQuestionSoon();
     } else {
       setQuestionFeedback(`Yanlış cevap. Doğrusu ${state.currentQuestion.answer}. Puan yok.`, "wrong");
+      showAnswerFx("wrong");
       completeBox(activeBox);
       state.currentQuestion = null;
       state.questionTimer = 0;
@@ -653,6 +671,7 @@
       state.questionTimer = 0;
       answerInput.blur();
       dialog.close();
+      playPendingAnswerFx();
       releaseAllInput();
       returnFocusToGame();
       syncControlsEnabled();
@@ -883,6 +902,8 @@
 
     if (state.bossCelebration) {
       updateBossCelebration(dt);
+      updatePlayerAnimation(dt);
+      updateFx(dt);
       updateHud();
       return;
     }
@@ -898,13 +919,14 @@
     if (player.invuln > 0) player.invuln = Math.max(0, player.invuln - dt);
 
     updatePlayer(dt);
+    updatePlayerAnimation(dt);
     for (const e of enemies) updateEnemy(e, dt);
-    updateParticles(dt);
+    updateFx(dt);
     updateBoss(dt);
     collectCoins();
     checkEnemyContacts();
     checkFinish();
-    updateCamera();
+    updateCamera(dt);
     updateHud();
   }
 
@@ -915,6 +937,7 @@
     if (state.questionTimer > 0) return;
     const activeBox = state.activeBox;
     setQuestionFeedback("Süre bitti. Puan yok.", "wrong");
+    showAnswerFx("wrong");
     setAnswerLocked(true);
     completeBox(activeBox);
     state.currentQuestion = null;
@@ -976,6 +999,7 @@
       e.vx = -Math.abs(e.vx);
     }
     e.facing = e.vx >= 0 ? 1 : -1;
+    updateEnemyVisual(e, dt);
   }
 
   function updatePlayerRunEffects(input, dt) {
@@ -983,34 +1007,13 @@
       state.footstepTimer = 0;
       return;
     }
+    // Toz sıklığı gerçek hıza bağlı: yavaş yürüyüşte seyrek, koşuda sık.
+    const speedRatio = Math.min(1, player.anim.speed / MOVE_SPEED);
+    if (speedRatio < 0.15) return;
     state.footstepTimer -= dt;
     if (state.footstepTimer > 0) return;
-    state.footstepTimer = 0.13;
-    spawnDust(player.x + player.w / 2 - player.facing * 18, footY(player) + 1, -player.facing);
-  }
-
-  function spawnDust(x, y, direction) {
-    for (let i = 0; i < 3; i += 1) {
-      state.particles.push({
-        x,
-        y,
-        vx: direction * rand(20, 55) + rand(-8, 8),
-        vy: -rand(12, 32),
-        life: 0.34,
-        maxLife: 0.34,
-        size: rand(4, 8)
-      });
-    }
-  }
-
-  function updateParticles(dt) {
-    for (const p of state.particles) {
-      p.life -= dt;
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.vy += 160 * dt;
-    }
-    state.particles = state.particles.filter((p) => p.life > 0);
+    state.footstepTimer = 0.22 - speedRatio * 0.1;
+    spawnDust(player.x + player.w / 2 - player.facing * 18, footY(player) + 1, -player.facing, speedRatio > 0.6 ? 3 : 2);
   }
 
   function applyPhysics(body, dt, canOpenBoxes) {
@@ -1052,6 +1055,7 @@
       if (rectsOverlap(player, c)) {
         c.collected = true;
         addScore(10, "+10 altın");
+        spawnCoinSparkle(c.x + c.w / 2, c.y + c.h / 2);
         sounds.coin();
       }
     }
@@ -1185,6 +1189,7 @@
         trailColor: ["#ffb12b", "#4fe5ff", "#d7ff45"][i],
         salvoId,
         damagesBoss: i === 1,
+        sprite: i,
         hit: false
       });
     }
@@ -1199,6 +1204,7 @@
       const eased = t * t * (3 - 2 * t);
       rocket.x = rocket.startX + (rocket.targetX - rocket.startX) * eased;
       rocket.y = rocket.startY + (rocket.targetY - rocket.startY) * eased;
+      spawnRocketSmoke(rocket);
       if (t >= 1) {
         rocket.hit = true;
         spawnRocketImpact(rocket.x + rocket.w / 2, rocket.y + rocket.h / 2);
@@ -1210,7 +1216,8 @@
 
   function spawnRocketImpact(x, y) {
     for (let i = 0; i < 7; i += 1) {
-      state.particles.push({
+      pushParticle({
+        kind: "spark",
         x,
         y,
         vx: rand(-80, 80),
@@ -1218,6 +1225,7 @@
         life: 0.34,
         maxLife: 0.34,
         size: rand(4, 9),
+        gravity: 160,
         color: i % 2 === 0 ? "#ffb12b" : "#ff5938"
       });
     }
@@ -1228,6 +1236,7 @@
     if (boss.defeated) return;
     boss.health = Math.max(0, boss.health - 1);
     boss.shake = 1;
+    onBossHitFx();
     sounds.enemy();
     showToast(`Boss canı: ${boss.health}`);
     if (boss.health === 0) {
@@ -1269,6 +1278,7 @@
     if (celebration.burstTimer <= 0) {
       celebration.burstTimer = 0.42;
       spawnFirework(rand(250, 1040), rand(130, 300));
+      spawnFirework(rand(180, 1100), rand(90, 220), "far");
     }
     updateFireworks(dt);
     if (celebration.timer <= 0) {
@@ -1278,32 +1288,41 @@
     }
   }
 
-  function spawnFirework(x, y) {
+  // Havai fişekler iki derinlik katmanında: uzak (küçük, soluk, yavaş) ve yakın (büyük, parlak).
+  function spawnFirework(x, y, depth = "near") {
     const colors = ["#ff4d6d", "#ffd166", "#2dd4bf", "#38bdf8", "#a78bfa"];
-    for (let i = 0; i < 28; i += 1) {
-      const angle = (Math.PI * 2 * i) / 28 + rand(-8, 8) / 100;
-      const speed = rand(75, 170);
+    const far = depth === "far";
+    const count = Math.round((far ? 18 : 28) * fxIntensity());
+    const cap = fireworkCap();
+    for (let i = 0; i < count && state.fireworks.length < cap; i += 1) {
+      const angle = (Math.PI * 2 * i) / count + rand(-8, 8) / 100;
+      const speed = rand(75, 170) * (far ? 0.6 : 1);
       state.fireworks.push({
         x,
         y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        life: 0.9,
-        maxLife: 0.9,
-        size: rand(3, 6),
+        life: far ? 1.1 : 0.9,
+        maxLife: far ? 1.1 : 0.9,
+        size: rand(3, 6) * (far ? 0.6 : 1),
+        depth,
         color: colors[i % colors.length]
       });
     }
   }
 
   function updateFireworks(dt) {
+    let n = 0;
     for (const p of state.fireworks) {
       p.life -= dt;
+      if (p.life <= 0) continue;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      p.vy += 95 * dt;
+      p.vy += (p.depth === "far" ? 60 : 95) * dt;
+      state.fireworks[n] = p;
+      n += 1;
     }
-    state.fireworks = state.fireworks.filter((p) => p.life > 0);
+    state.fireworks.length = n;
   }
 
   function bossBody() {
@@ -1328,6 +1347,7 @@
     player.grounded = false;
     setFootY(player, e.y - 2);
     showToast("Canavar yenildi");
+    spawnEnemyDefeatPuff(e);
     sounds.enemy();
   }
 
@@ -1335,6 +1355,7 @@
     if (!fell && player.invuln > 0) return;
     state.lives = Math.max(0, state.lives - 1);
     player.invuln = 1.4;
+    player.anim.hurt = PLAYER_ANIM_TIMING.hurt;
     player.vy = -460;
     player.vx = -player.facing * 210;
     sounds.enemy();
@@ -1364,6 +1385,8 @@
     state.resultSaved = false;
     releaseAllInput();
     resultKicker.textContent = "Tebrikler";
+    state.victoryPose = true;
+    setPlayerAnimation("victory");
     resultTitle.textContent = "Final Skor";
     finalScore.textContent = state.score;
     savedScoreStatus.textContent = "";
@@ -1496,6 +1519,9 @@
     player.invuln = 0;
     player.grounded = false;
     state.cameraX = 0;
+    state.cameraLook = 0;
+    state.victoryPose = false;
+    player.anim = createPlayerAnimState();
     releaseAllInput();
   }
 
@@ -1534,99 +1560,1359 @@
     return assets.bosses[state.level - 1] || assets.bosses[0];
   }
 
-  function updateCamera() {
-    const target = player.x + player.w / 2 - VIEW.w * 0.42;
-    state.cameraX += (target - state.cameraX) * 0.09;
-    state.cameraX = Math.max(0, Math.min(WORLD.w - VIEW.w, state.cameraX));
+  /* =======================================================================
+   * GÖRSEL KATMAN
+   * Karakter animasyonu, 2.5D platformlar, parallax arka plan ve efektler.
+   * Bu bölüm oyun durumunu yalnızca OKUR: çarpışma kutuları, platform koordinatları,
+   * fizik değerleri ve oyun kuralları burada değiştirilmez.
+   * ======================================================================= */
+
+  /* ---------- Oyuncu animasyonu ---------- */
+
+  // Poz kutuları kaynak sprite sheet koordinatlarındadır (1664 px genişlik); oyun %60 küçültülmüş
+  // kopyayı kullanır ve koordinatları orantılı ölçekler. Değerler tools/prepare-player-sheet.mjs
+  // ile ölçülmüştür. ax: gövde merkezinin kutu içindeki x'i, ay: ayak tabanının kutu içindeki y'si.
+  const PLAYER_FRAMES = {
+    "run-0": { sx: 0, sy: 69, sw: 318, sh: 474, ax: 180, ay: 474 },
+    "run-1": { sx: 339, sy: 62, sw: 310, sh: 496, ax: 182, ay: 496 },
+    "run-2": { sx: 698, sy: 61, sw: 288, sh: 495, ax: 156, ay: 495 },
+    "run-3": { sx: 1044, sy: 64, sw: 290, sh: 494, ax: 153, ay: 494 },
+    "run-4": { sx: 1372, sy: 68, sw: 292, sh: 484, ax: 174, ay: 484 },
+    "walk-0": { sx: 24, sy: 880, sw: 251, sh: 520, ax: 122, ay: 520 },
+    "walk-1": { sx: 379, sy: 880, sw: 229, sh: 519, ax: 113, ay: 519 },
+    "walk-2": { sx: 711, sy: 880, sw: 236, sh: 516, ax: 117, ay: 516 },
+    "walk-3": { sx: 1039, sy: 880, sw: 269, sh: 518, ax: 135, ay: 518 },
+    "walk-4": { sx: 1401, sy: 880, sw: 249, sh: 520, ax: 125, ay: 520 },
+    idle: { sx: 535, sy: 1470, sw: 186, sh: 488, ax: 93, ay: 488 },
+    "jump-tuck": { sx: 466, sy: 2000, sw: 329, sh: 477, ax: 159, ay: 477 },
+    victory: { sx: 1325, sy: 1998, sw: 307, sh: 508, ax: 156, ay: 508 }
+  };
+
+  // scale: kaynak pikselden dünya birimine ölçek (yürüme satırı kaynakta biraz daha büyük çizilmiş).
+  // stride: bir karenin kaç dünya pikseli yürüyüşe karşılık geldiği → kare hızı gerçek hıza bağlı.
+  // lean: yönle çarpılan hafif eğim (radyan).
+  const PLAYER_ANIMATIONS = {
+    idle: { frames: ["idle"], scale: 0.262 },
+    walk: { frames: ["walk-0", "walk-1", "walk-2", "walk-3", "walk-4"], scale: 0.251, stride: 24 },
+    run: { frames: ["run-0", "run-1", "run-2", "run-3", "run-4"], scale: 0.266, stride: 34, lean: 0.05 },
+    "jump-start": { frames: ["run-1"], scale: 0.266 },
+    "jump-up": { frames: ["run-2"], scale: 0.266, lean: -0.03 },
+    apex: { frames: ["jump-tuck"], scale: 0.262 },
+    fall: { frames: ["run-3"], scale: 0.266, lean: 0.04 },
+    land: { frames: ["idle"], scale: 0.262 },
+    hurt: { frames: ["jump-tuck"], scale: 0.262, lean: -0.16 },
+    victory: { frames: ["victory"], scale: 0.262 }
+  };
+
+  const PLAYER_ANIM_TIMING = {
+    jumpStart: 0.09, // zıplamanın ilk anı
+    land: 0.13, // iniş sıkışması (100–160 ms)
+    hurt: 0.38,
+    apexBand: 260, // |vy| bu değerin altındaysa tepe noktası
+    walkToRun: 0.62, // hız / MOVE_SPEED bu oranın üstünde koşu
+    runToWalk: 0.55, // koşudan yürüyüşe dönüş eşiği (titremeyi önler)
+    idleSpeed: 12, // px/sn altında boşta
+    minAirForLand: 0.12 // bu süreden kısa havada kalışlarda iniş animasyonu oynamaz
+  };
+
+  function createPlayerAnimState() {
+    return {
+      name: "idle",
+      frame: "idle",
+      stateTime: 0,
+      time: 0,
+      distance: 0,
+      speed: 0,
+      lastX: null,
+      wasGrounded: true,
+      jumped: false,
+      airTime: 0,
+      peakFall: 0,
+      jumpStart: 0,
+      land: 0,
+      hurt: 0
+    };
   }
 
-  function draw() {
-    ctx.setTransform(state.renderScale, 0, 0, state.renderScale, 0, 0);
-    ctx.clearRect(0, 0, VIEW.w, VIEW.h);
-    drawSky();
+  function setPlayerAnimation(name) {
+    const a = player.anim;
+    if (a.name !== name) a.stateTime = 0;
+    a.name = name;
+    a.frame = PLAYER_ANIMATIONS[name].frames[0];
+  }
+
+  // Durum makinesi: fiziğin ürettiği gerçek hareketten animasyon seçer. FPS'ten bağımsızdır.
+  function updatePlayerAnimation(dt) {
+    const a = player.anim;
+    const T = PLAYER_ANIM_TIMING;
+    if (a.lastX === null) a.lastX = player.x;
+    // Gerçek yer değiştirme: duvara yaslanınca yerinde koşma olmaz.
+    if (dt > 0) a.speed = Math.min(MOVE_SPEED * 1.2, Math.abs(player.x - a.lastX) / dt);
+    a.lastX = player.x;
+    a.time += dt;
+    a.jumpStart = Math.max(0, a.jumpStart - dt);
+    a.land = Math.max(0, a.land - dt);
+    a.hurt = Math.max(0, a.hurt - dt);
+
+    if (a.wasGrounded && !player.grounded) {
+      a.airTime = 0;
+      a.peakFall = 0;
+      a.jumped = player.vy < -300;
+      if (a.jumped) {
+        a.jumpStart = T.jumpStart;
+        spawnJumpDust(player.x + player.w / 2, footY(player));
+      }
+    }
+    if (!player.grounded) {
+      a.airTime += dt;
+      a.peakFall = Math.max(a.peakFall, player.vy);
+    } else if (!a.wasGrounded) {
+      if (a.airTime >= T.minAirForLand) {
+        a.land = T.land;
+        spawnLandingDust(player.x + player.w / 2, footY(player), a.peakFall);
+      }
+      a.airTime = 0;
+      a.jumped = false;
+    }
+    a.wasGrounded = player.grounded;
+
+    let name;
+    if (state.victoryPose || state.bossCelebration) name = "victory";
+    else if (a.hurt > 0) name = "hurt";
+    else if (!player.grounded) {
+      if (a.jumpStart > 0) name = "jump-start";
+      else if (player.vy < -T.apexBand) name = "jump-up";
+      else if (a.jumped && player.vy <= T.apexBand) name = "apex";
+      else name = "fall";
+    } else if (a.land > 0) name = "land";
+    else if (a.speed < T.idleSpeed) name = "idle";
+    else {
+      const ratio = a.speed / MOVE_SPEED;
+      name = (a.name === "run" ? ratio > T.runToWalk : ratio >= T.walkToRun) ? "run" : "walk";
+    }
+
+    if (name !== a.name) a.stateTime = 0;
+    else a.stateTime += dt;
+    a.name = name;
+    const def = PLAYER_ANIMATIONS[name];
+    if (def.stride) {
+      a.distance += a.speed * dt;
+      a.frame = def.frames[Math.floor(a.distance / def.stride) % def.frames.length];
+    } else {
+      a.frame = def.frames[0];
+    }
+  }
+
+  // Çizim dönüşümü: ayak noktası (çarpışma kutusunun alt ortası) sabit kalır; ölçek ve eğim
+  // bu nokta etrafında uygulanır. Hem çizimde hem testlerde kullanılır.
+  function playerVisualState() {
+    const a = player.anim;
+    const def = PLAYER_ANIMATIONS[a.name] || PLAYER_ANIMATIONS.idle;
+    const frame = PLAYER_FRAMES[a.frame] || PLAYER_FRAMES.idle;
+    const reduced = reducedMotionQuery.matches;
+    let sx = 1;
+    let sy = 1;
+    if (a.name === "idle" && !reduced) {
+      const breathe = Math.sin(a.time * 2.4);
+      sy = 1 + breathe * 0.012;
+      sx = 1 - breathe * 0.006;
+    } else if (a.name === "land") {
+      const k = Math.sin(Math.PI * (1 - a.land / PLAYER_ANIM_TIMING.land));
+      sy = 1 - 0.07 * k;
+      sx = 1 + 0.05 * k;
+    } else if (a.name === "jump-start") {
+      sy = 1.05;
+      sx = 0.96;
+    }
+    const facing = player.facing < 0 ? -1 : 1;
+    const lean = (def.lean || 0) * (a.name === "hurt" ? a.hurt / PLAYER_ANIM_TIMING.hurt : 1);
+    const scale = def.scale;
+    const footX = player.x + player.w / 2;
+    const footYv = footY(player);
+    // Ayak tabanı ay satırında: çizilen görüntünün alt kenarı her karede ayak noktasına denk gelir.
+    const left = footX + facing * (0 - frame.ax) * scale * sx;
+    const right = footX + facing * (frame.sw - frame.ax) * scale * sx;
+    return {
+      animation: a.name,
+      frameName: a.frame,
+      frame,
+      scale,
+      sx,
+      sy,
+      tilt: lean * facing,
+      facing,
+      footX,
+      footY: footYv,
+      spriteBottom: footYv + (frame.sh - frame.ay) * scale * sy,
+      spriteLeft: Math.min(left, right),
+      spriteRight: Math.max(left, right)
+    };
+  }
+
+  function drawPlayer() {
+    if (player.shield > 0) drawShield(player);
+    // Mevcut hasar sonrası yanıp sönme davranışı korunur.
+    if (player.invuln > 0 && Math.floor(player.invuln * 16) % 2 === 0) return;
+    const v = playerVisualState();
+    drawGroundShadow(v.footX, v.footY, 50);
     ctx.save();
-    ctx.translate(-Math.round(state.cameraX), 0);
-    drawWorldDecor();
-    for (const p of platforms) drawPlatform(p);
-    drawFinishGate();
-    for (const b of boxes) drawQuestionBox(b);
-    drawBossFightObjects();
-    for (const c of coins) drawCoin(c);
-    drawParticles();
-    for (const e of enemies) drawActor(e);
-    drawBoss();
-    drawActor(player);
-    if (state.debug) drawDebug();
+    ctx.translate(v.footX, v.footY);
+    ctx.rotate(v.tilt);
+    ctx.scale(v.facing * v.sx, v.sy);
+    const sheet = assets.playerSheet;
+    if (sheet.complete && sheet.naturalWidth > 0) {
+      const k = sheet.naturalWidth / SPRITE_SHEET_SOURCE_WIDTH;
+      const f = v.frame;
+      ctx.drawImage(sheet, f.sx * k, f.sy * k, f.sw * k, f.sh * k, -f.ax * v.scale, -f.ay * v.scale, f.sw * v.scale, f.sh * v.scale);
+    } else if (assets.player.complete && assets.player.naturalWidth > 0) {
+      // Sprite sheet yüklenemezse tekli görsel (eski davranış)
+      ctx.drawImage(assets.player, -42, -128, 84, 128);
+    } else {
+      ctx.fillStyle = "#2f85dc";
+      roundRect(-23, -112, 46, 112, 8);
+      ctx.fill();
+    }
     ctx.restore();
-    drawBossHud();
-    drawBossCelebration();
   }
 
-  function drawSky() {
-    const theme = currentTheme();
-    const gradient = ctx.createLinearGradient(0, 0, 0, VIEW.h);
-    gradient.addColorStop(0, theme.skyTop);
-    gradient.addColorStop(0.55, theme.skyMid);
-    gradient.addColorStop(1, theme.skyBottom);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, VIEW.w, VIEW.h);
-    ctx.fillStyle = theme.sun;
-    ctx.beginPath();
-    ctx.arc(142, 112, 56, 0, Math.PI * 2);
-    ctx.fill();
-    drawCloud(365 - state.cameraX * 0.18, 120, 1.1);
-    drawCloud(860 - state.cameraX * 0.1, 82, 0.8);
-    drawCloud(1160 - state.cameraX * 0.15, 165, 0.95);
+  /* ---------- Düşman görseli ---------- */
+
+  const ENEMY_DEFEAT_TIME = 0.45;
+
+  function updateEnemyVisual(e, dt) {
+    e.stepPhase += Math.abs(e.vx) * dt * 0.11;
+    const dx = player.x + player.w / 2 - (e.x + e.w / 2);
+    const dy = Math.abs(footY(player) - footY(e));
+    const target = Math.abs(dx) < 230 && dy < 160 ? 1 : 0;
+    e.alert += (target - e.alert) * Math.min(1, dt * 6);
+    e.lookDir = dx >= 0 ? 1 : -1;
   }
 
-  function drawCloud(x, y, s) {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.86)";
-    ctx.beginPath();
-    ctx.arc(x, y, 28 * s, 0, Math.PI * 2);
-    ctx.arc(x + 34 * s, y - 12 * s, 36 * s, 0, Math.PI * 2);
-    ctx.arc(x + 76 * s, y, 30 * s, 0, Math.PI * 2);
-    ctx.rect(x - 4 * s, y, 86 * s, 26 * s);
-    ctx.fill();
+  function enemyVisualState(e) {
+    if (e.defeated) {
+      const t = 1 - Math.max(0, e.defeatTimer) / ENEMY_DEFEAT_TIME;
+      const ease = 1 - (1 - t) * (1 - t);
+      return { sx: 1 + 0.35 * ease, sy: Math.max(0.15, 1 - 0.8 * ease), tilt: 0, alpha: Math.max(0, 1 - t * t), visible: e.defeatTimer > 0 };
+    }
+    const step = Math.sin(e.stepPhase);
+    const bounce = Math.abs(step);
+    const alert = e.alert || 0;
+    return {
+      sx: 1 - bounce * 0.02 + alert * 0.015,
+      sy: 1 + bounce * 0.04 + alert * 0.03,
+      tilt: step * 0.045 + alert * 0.05 * (e.lookDir || 1),
+      alpha: 1,
+      visible: true
+    };
   }
 
-  function drawWorldDecor() {
-    const theme = currentTheme();
-    for (let x = -100; x < WORLD.w + 250; x += 260) {
-      const hill = 32 + (x % 520 === 0 ? 18 : 0);
-      ctx.fillStyle = theme.hill;
+  function drawEnemy(e) {
+    const v = enemyVisualState(e);
+    if (!v.visible) return;
+    const cx = e.x + e.w / 2;
+    const foot = footY(e);
+    drawGroundShadow(cx, foot, 62 * v.sx, v.alpha);
+    ctx.save();
+    ctx.globalAlpha = v.alpha;
+    ctx.translate(cx, foot);
+    ctx.rotate(v.tilt);
+    ctx.scale((e.facing < 0 ? -1 : 1) * v.sx, v.sy);
+    const sprite = e.sprite;
+    if (sprite.image.complete && sprite.image.naturalWidth > 0) {
+      ctx.drawImage(sprite.image, -sprite.drawW / 2, -sprite.drawH, sprite.drawW, sprite.drawH);
+    } else {
+      ctx.fillStyle = "#c88be2";
+      roundRect(-sprite.drawW / 2, -sprite.drawH, sprite.drawW, sprite.drawH, 8);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /* ---------- Yardımcılar: renk, tuval, rastgele ---------- */
+
+  function makeCanvas(w, h) {
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.ceil(w));
+    c.height = Math.max(1, Math.ceil(h));
+    return c;
+  }
+
+  function hexToRgb(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  function mixColor(a, b, t, alpha = 1) {
+    const x = hexToRgb(a);
+    const y = hexToRgb(b);
+    const c = x.map((v, i) => Math.round(v + (y[i] - v) * t));
+    return alpha >= 1 ? `rgb(${c[0]}, ${c[1]}, ${c[2]})` : `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${alpha})`;
+  }
+
+  // Tekrarlanabilir desenler için küçük deterministik rastgele üretici
+  function seededRandom(seed) {
+    let t = seed >>> 0;
+    return () => {
+      t += 0x6d2b79f5;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function cacheScale() {
+    return Math.max(0.5, Math.min(state.renderScale, 2));
+  }
+
+  /* ---------- Yumuşak zemin gölgesi ---------- */
+
+  const shadowSprite = (() => {
+    const c = makeCanvas(128, 32);
+    const g = c.getContext("2d");
+    const grad = g.createRadialGradient(64, 16, 2, 64, 16, 64);
+    grad.addColorStop(0, "rgba(20, 38, 35, 0.55)");
+    grad.addColorStop(0.55, "rgba(20, 38, 35, 0.3)");
+    grad.addColorStop(1, "rgba(20, 38, 35, 0)");
+    g.fillStyle = grad;
+    g.setTransform(1, 0, 0, 0.25, 0, 12);
+    g.beginPath();
+    g.arc(64, 16, 64, 0, Math.PI * 2);
+    g.fill();
+    return c;
+  })();
+
+  function groundBelow(x, fromY) {
+    let best = Infinity;
+    for (const p of platforms) {
+      if (x >= p.x && x <= p.x + p.w && p.y >= fromY - 2 && p.y < best) best = p.y;
+    }
+    return best;
+  }
+
+  // Gölge zemindeki gerçek noktaya bağlıdır; karakter yükseldikçe küçülür ve saydamlaşır.
+  function drawGroundShadow(cx, footYv, width, alpha = 1) {
+    const gy = groundBelow(cx, footYv);
+    if (!Number.isFinite(gy)) return;
+    const height = Math.max(0, gy - footYv);
+    const f = Math.max(0.3, Math.min(1, 1 - height / 320));
+    const w = width * f;
+    const h = 16 * f;
+    ctx.save();
+    ctx.globalAlpha = f * alpha;
+    ctx.drawImage(shadowSprite, cx - w / 2, gy - h / 2 + 2, w, h);
+    ctx.restore();
+  }
+
+  /* ---------- 2.5D platformlar (önceden çizilip önbellekte tutulur) ---------- */
+
+  const platformCache = new Map();
+  let platformCacheKey = "";
+
+  function drawPlatform(p, index) {
+    const scale = cacheScale();
+    const key = `${state.level}|${scale}`;
+    if (key !== platformCacheKey) {
+      platformCache.clear();
+      platformCacheKey = key;
+    }
+    let entry = platformCache.get(index);
+    if (!entry) {
+      entry = renderPlatformSprite(p, index, currentTheme(), scale);
+      platformCache.set(index, entry);
+    }
+    ctx.drawImage(entry.canvas, p.x - entry.padX, p.y - entry.padTop, entry.w, entry.h);
+  }
+
+  // Işık sol üstten gelir: üst yüzey açık, ön yüz koyu, sağ kenar gölgeli.
+  // Çarpışma dikdörtgeni aynen kalır; hacim ön/alt tarafa doğru eklenir.
+  function renderPlatformSprite(p, index, theme, scale) {
+    const floating = p.type === "grass";
+    const padX = 5;
+    const padTop = 7;
+    const under = floating ? 20 : 0;
+    const w = p.w + padX * 2;
+    const h = padTop + p.h + under + 2;
+    const canvas = makeCanvas(w * scale, h * scale);
+    const g = canvas.getContext("2d");
+    g.scale(scale, scale);
+    g.translate(padX, padTop);
+    const rnd = seededRandom(index * 7919 + state.level * 104729);
+    const topColor = floating ? theme.grass : theme.groundTop;
+
+    // Yüzen platformun kayalık alt tarafı
+    if (floating) {
+      g.fillStyle = mixColor(theme.dirtBottom, "#000000", 0.25);
+      g.beginPath();
+      g.moveTo(4, p.h - 6);
+      const steps = Math.max(4, Math.round(p.w / 38));
+      for (let i = 1; i < steps; i += 1) {
+        const x = (p.w * i) / steps;
+        const depth = under * (0.45 + 0.55 * Math.sin((Math.PI * i) / steps)) * (0.75 + rnd() * 0.35);
+        g.lineTo(x, p.h - 4 + depth);
+      }
+      g.lineTo(p.w - 4, p.h - 6);
+      g.closePath();
+      g.fill();
+    }
+
+    // Ön yüz (toprak)
+    const front = g.createLinearGradient(0, 10, 0, p.h + under);
+    front.addColorStop(0, theme.dirtTop);
+    front.addColorStop(1, theme.dirtBottom);
+    g.fillStyle = front;
+    roundRect(0, 0, p.w, p.h, 9, g);
+    g.fill();
+
+    // Toprak dokusu: katman çizgileri, benekler ve küçük çakıllar
+    g.save();
+    roundRect(0, 0, p.w, p.h, 9, g);
+    g.clip();
+    g.strokeStyle = "rgba(60, 30, 15, 0.14)";
+    g.lineWidth = 2;
+    for (let y = 24; y < p.h - 4; y += 16 + rnd() * 10) {
+      g.beginPath();
+      g.moveTo(0, y);
+      for (let x = 0; x <= p.w; x += 40) g.lineTo(x, y + (rnd() - 0.5) * 4);
+      g.stroke();
+    }
+    const speckles = Math.round((p.w * p.h) / 170);
+    for (let i = 0; i < speckles; i += 1) {
+      const x = rnd() * p.w;
+      const y = 16 + rnd() * (p.h - 16);
+      g.fillStyle = rnd() < 0.5 ? "rgba(255, 236, 190, 0.16)" : "rgba(50, 25, 10, 0.16)";
+      g.fillRect(x, y, 2 + rnd() * 3, 2 + rnd() * 2);
+    }
+    const pebbles = Math.round(p.w / 55);
+    for (let i = 0; i < pebbles; i += 1) {
+      const x = 12 + rnd() * (p.w - 24);
+      const y = 22 + rnd() * Math.max(4, p.h - 30);
+      const r = 3 + rnd() * 4;
+      g.fillStyle = mixColor(theme.dirtTop, "#ffffff", 0.18);
+      g.beginPath();
+      g.ellipse(x, y, r * 1.3, r, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = "rgba(255, 255, 255, 0.28)";
+      g.beginPath();
+      g.ellipse(x - r * 0.4, y - r * 0.35, r * 0.5, r * 0.35, 0, 0, Math.PI * 2);
+      g.fill();
+    }
+    // Sağ kenar gölgesi, sol kenar ışığı ve alt koyulaşma
+    const side = g.createLinearGradient(p.w - 18, 0, p.w, 0);
+    side.addColorStop(0, "rgba(0, 0, 0, 0)");
+    side.addColorStop(1, "rgba(0, 0, 0, 0.16)");
+    g.fillStyle = side;
+    g.fillRect(p.w - 18, 0, 18, p.h);
+    g.fillStyle = "rgba(255, 255, 255, 0.07)";
+    g.fillRect(0, 0, 6, p.h);
+    const bottom = g.createLinearGradient(0, p.h * 0.55, 0, p.h);
+    bottom.addColorStop(0, "rgba(0, 0, 0, 0)");
+    bottom.addColorStop(1, "rgba(0, 0, 0, 0.16)");
+    g.fillStyle = bottom;
+    g.fillRect(0, p.h * 0.55, p.w, p.h * 0.45);
+    // Üst örtünün toprağa düşürdüğü gölge
+    const lip = g.createLinearGradient(0, 13, 0, 24);
+    lip.addColorStop(0, "rgba(0, 0, 0, 0.22)");
+    lip.addColorStop(1, "rgba(0, 0, 0, 0)");
+    g.fillStyle = lip;
+    g.fillRect(0, 13, p.w, 11);
+    g.restore();
+
+    // Üst yüzey (çim) — daha açık, üst kenarda bevel ışığı
+    const cap = g.createLinearGradient(0, 0, 0, 15);
+    cap.addColorStop(0, mixColor(topColor, "#ffffff", 0.22));
+    cap.addColorStop(0.55, topColor);
+    cap.addColorStop(1, mixColor(topColor, "#000000", 0.12));
+    g.fillStyle = cap;
+    roundRect(0, 0, p.w, 15, 7, g);
+    g.fill();
+    g.strokeStyle = "rgba(255, 255, 255, 0.5)";
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(7, 1.6);
+    g.lineTo(p.w - 7, 1.6);
+    g.stroke();
+
+    // Ön kenardan sarkan çim saçakları
+    g.fillStyle = mixColor(topColor, "#000000", 0.08);
+    for (let x = 3; x < p.w - 3; x += 6 + rnd() * 6) {
+      const r = 3 + rnd() * 3;
+      g.beginPath();
+      g.arc(x, 13.5, r, 0, Math.PI);
+      g.fill();
+    }
+    // Üstte küçük çim uçları (yalnızca görsel, birkaç piksel)
+    g.fillStyle = mixColor(topColor, "#ffffff", 0.3);
+    for (let x = 6; x < p.w - 6; x += 7 + rnd() * 9) {
+      const bh = 2 + rnd() * 4;
+      g.beginPath();
+      g.moveTo(x - 2, 1);
+      g.lineTo(x + (rnd() - 0.5) * 2, -bh);
+      g.lineTo(x + 2, 1);
+      g.closePath();
+      g.fill();
+    }
+    return { canvas, padX, padTop, w, h };
+  }
+
+  /* ---------- Parallax arka plan ---------- */
+
+  // Kamera hızının oranı. Oyun dünyası 1.0'dır.
+  const PARALLAX_LAYERS = [
+    { id: "far-clouds", factor: 0.07, drift: 6 },
+    { id: "far-mountains", factor: 0.18 },
+    { id: "mid-hills", factor: 0.42 },
+    { id: "near-bushes", factor: 0.7 }
+  ];
+  const PARALLAX_TILE_W = VIEW.w;
+  // Zemin platformları dünyanın her yerinde y ≥ 650 bölgesini örter; arka plan bu çizgiye kadar
+  // çizilir. Böylece görünmeyen alan boyanmaz (telefonda doldurma maliyeti düşer).
+  const BACKDROP_BOTTOM = 656;
+  // Opak katmanların arkası boyanmaz: dağlar y≈530'dan, orta tepeler y≈600'den aşağısını tamamen örter.
+  const SKY_BOTTOM = 530;
+  const MOUNTAIN_BOTTOM = 600;
+
+  // Seviye atmosferleri mevcut renk paletlerinden türetilir.
+  const LEVEL_ATMOSPHERE = {
+    1: { name: "parlak-gunduz", light: { x: 150, y: 112, r: 58, kind: "sun" }, glow: "rgba(255, 246, 190, 0.55)", cloud: "#ffffff", cloudAlpha: 0.9, mist: 0, stars: 0 },
+    2: { name: "serin-vadi", light: { x: 1060, y: 96, r: 46, kind: "sun" }, glow: "rgba(230, 245, 255, 0.45)", cloud: "#f2f8ff", cloudAlpha: 0.8, mist: 0.5, stars: 0 },
+    3: { name: "gun-batimi", light: { x: 880, y: 430, r: 96, kind: "sun" }, glow: "rgba(255, 190, 120, 0.6)", cloud: "#ffd9c4", cloudAlpha: 0.85, mist: 0.2, stars: 0 },
+    4: { name: "mor-aksam", light: { x: 1040, y: 104, r: 38, kind: "moon" }, glow: "rgba(220, 220, 255, 0.35)", cloud: "#c9cdf5", cloudAlpha: 0.55, mist: 0.25, stars: 70 }
+  };
+
+  let parallaxCache = null;
+
+  function getParallax() {
+    const scale = Math.min(cacheScale(), 1.25);
+    const key = `${state.level}|${scale}`;
+    if (!parallaxCache || parallaxCache.key !== key) parallaxCache = buildParallax(state.level, scale, key);
+    return parallaxCache;
+  }
+
+  // Periyodik (döşenebilir) silüet: tam sayılı sinüs periyotları sayesinde kenarlar birleşir.
+  function ridge(g, baseY, parts, bottom) {
+    g.beginPath();
+    g.moveTo(0, bottom);
+    for (let x = 0; x <= PARALLAX_TILE_W; x += 8) {
+      let y = baseY;
+      for (const [amp, period, phase] of parts) y += amp * Math.sin((Math.PI * 2 * period * x) / PARALLAX_TILE_W + phase);
+      g.lineTo(x, y);
+    }
+    g.lineTo(PARALLAX_TILE_W, bottom);
+    g.closePath();
+  }
+
+  function buildParallax(level, scale, key) {
+    const theme = (LEVELS[level - 1] || LEVELS[0]).theme;
+    const atmo = LEVEL_ATMOSPHERE[level] || LEVEL_ATMOSPHERE[1];
+    const rnd = seededRandom(level * 31337);
+
+    // 1) Gökyüzü, ışık kaynağı, yıldızlar (ekrana sabit)
+    const sky = makeCanvas(VIEW.w * scale, SKY_BOTTOM * scale);
+    const sg = sky.getContext("2d");
+    sg.scale(scale, scale);
+    const grad = sg.createLinearGradient(0, 0, 0, VIEW.h);
+    grad.addColorStop(0, theme.skyTop);
+    grad.addColorStop(0.55, theme.skyMid);
+    grad.addColorStop(1, theme.skyBottom);
+    sg.fillStyle = grad;
+    sg.fillRect(0, 0, VIEW.w, VIEW.h);
+    for (let i = 0; i < atmo.stars; i += 1) {
+      sg.fillStyle = `rgba(255, 255, 255, ${0.35 + rnd() * 0.5})`;
+      const r = 0.8 + rnd() * 1.4;
+      sg.beginPath();
+      sg.arc(rnd() * VIEW.w, rnd() * 330, r, 0, Math.PI * 2);
+      sg.fill();
+    }
+    const L = atmo.light;
+    const glow = sg.createRadialGradient(L.x, L.y, L.r * 0.6, L.x, L.y, L.r * 3.4);
+    glow.addColorStop(0, atmo.glow);
+    glow.addColorStop(1, "rgba(255, 255, 255, 0)");
+    sg.fillStyle = glow;
+    sg.fillRect(0, 0, VIEW.w, VIEW.h);
+    sg.fillStyle = L.kind === "moon" ? "#f4f1ff" : theme.sun;
+    sg.beginPath();
+    sg.arc(L.x, L.y, L.r, 0, Math.PI * 2);
+    sg.fill();
+    if (L.kind === "moon") {
+      sg.fillStyle = "rgba(170, 170, 220, 0.35)";
+      sg.beginPath();
+      sg.arc(L.x - 10, L.y - 8, L.r * 0.22, 0, Math.PI * 2);
+      sg.arc(L.x + 12, L.y + 10, L.r * 0.16, 0, Math.PI * 2);
+      sg.fill();
+    }
+
+    const layers = [];
+    const tile = (id, y, h, paint) => {
+      const def = PARALLAX_LAYERS.find((l) => l.id === id);
+      const c = makeCanvas(PARALLAX_TILE_W * scale, h * scale);
+      const g = c.getContext("2d");
+      g.scale(scale, scale);
+      g.translate(0, -y);
+      paint(g);
+      layers.push({ id, factor: def.factor, drift: def.drift || 0, canvas: c, y, h });
+    };
+
+    // 2) Çok uzak bulutlar: her bulut ayrı küçük sprite (saydam geniş döşeme boyanmaz)
+    const clouds = [];
+    const cloudCount = 6;
+    for (let i = 0; i < cloudCount; i += 1) {
+      const s = 0.6 + rnd() * 0.7;
+      const w = 150 * s;
+      const h = 60 * s;
+      const c = makeCanvas(w * scale, h * scale);
+      const g = c.getContext("2d");
+      g.scale(scale, scale);
+      g.fillStyle = atmo.cloud;
+      g.globalAlpha = atmo.cloudAlpha;
+      for (const [ox, oy, rx, ry] of [[0, 0, 46, 18], [30, -12, 34, 20], [-32, -4, 28, 14]]) {
+        g.beginPath();
+        g.ellipse(w / 2 + ox * s, h * 0.62 + oy * s, rx * s, ry * s, 0, 0, Math.PI * 2);
+        g.fill();
+      }
+      clouds.push({ canvas: c, x: (PARALLAX_TILE_W * (i + rnd() * 0.6)) / cloudCount - w / 2, y: 80 + rnd() * 150 - h * 0.62, w, h });
+    }
+    const cloudDef = PARALLAX_LAYERS.find((l) => l.id === "far-clouds");
+    layers.push({ id: "far-clouds", factor: cloudDef.factor, drift: cloudDef.drift, sprites: clouds });
+
+    // 3) Uzak dağ/tepe silüetleri (hava perspektifi: gökyüzü rengine yakın)
+    tile("far-mountains", 340, MOUNTAIN_BOTTOM - 340, (g) => {
+      const far = mixColor(theme.hill, theme.skyMid, 0.62);
+      g.fillStyle = far;
+      ridge(g, 440, [[46, 2, 0.4], [28, 5, 1.7], [12, 11, 0.2]], 690);
+      g.fill();
+      // Işık alan sırtlar
+      g.save();
+      g.clip();
+      g.fillStyle = "rgba(255, 255, 255, 0.12)";
+      ridge(g, 452, [[46, 2, 0.4], [28, 5, 1.7], [12, 11, 0.2]], 690);
+      g.translate(-14, 0);
+      g.fill();
+      g.restore();
+      if (atmo.mist > 0) {
+        const mist = g.createLinearGradient(0, 470, 0, 600);
+        mist.addColorStop(0, "rgba(255, 255, 255, 0)");
+        mist.addColorStop(1, `rgba(255, 255, 255, ${atmo.mist})`);
+        g.fillStyle = mist;
+        g.fillRect(0, 470, PARALLAX_TILE_W, 220);
+      }
+    });
+
+    // 4) Orta mesafe tepeler ve ağaç öbekleri
+    tile("mid-hills", 455, BACKDROP_BOTTOM - 455, (g) => {
+      const mid = mixColor(theme.hill, theme.skyBottom, 0.3);
+      g.fillStyle = mid;
+      ridge(g, 540, [[34, 3, 1.1], [16, 7, 2.3], [6, 13, 0.6]], 720);
+      g.fill();
+      // Sırta gömülü ağaç öbekleri: gövdeleri tepenin içinde kalır, havada asılı görünmez
+      g.fillStyle = mixColor(theme.hill, theme.skyBottom, 0.18);
+      const ridgeAt = (x) => 540 + 34 * Math.sin((Math.PI * 2 * 3 * x) / PARALLAX_TILE_W + 1.1) + 16 * Math.sin((Math.PI * 2 * 7 * x) / PARALLAX_TILE_W + 2.3) + 6 * Math.sin((Math.PI * 2 * 13 * x) / PARALLAX_TILE_W + 0.6);
+      for (let i = 0; i < 7; i += 1) {
+        const x = (PARALLAX_TILE_W * (i + rnd() * 0.7)) / 7;
+        const r = 11 + rnd() * 9;
+        for (const dx of [-PARALLAX_TILE_W, 0, PARALLAX_TILE_W]) {
+          for (const [ox, k] of [[-r * 0.9, 0.75], [0, 1], [r * 0.9, 0.8]]) {
+            g.beginPath();
+            g.arc(x + dx + ox, ridgeAt(x + ox) + r * 0.25, r * k, 0, Math.PI * 2);
+            g.fill();
+          }
+        }
+      }
+    });
+
+    // 5) Yakın çalı ve çimen detayları (soluk tutulur; coin ve kutuların önüne geçmez)
+    tile("near-bushes", 590, BACKDROP_BOTTOM - 590, (g) => {
+      const near = mixColor(theme.grass, theme.skyBottom, 0.35);
+      g.fillStyle = near;
+      ridge(g, 640, [[10, 4, 0.3], [5, 9, 1.9]], 720);
+      g.fill();
+      g.fillStyle = mixColor(theme.grass, theme.hill, 0.5);
+      for (let i = 0; i < 12; i += 1) {
+        const x = (PARALLAX_TILE_W * (i + rnd() * 0.8)) / 12;
+        const r = 10 + rnd() * 14;
+        for (const dx of [-PARALLAX_TILE_W, 0, PARALLAX_TILE_W]) {
+          g.beginPath();
+          g.arc(x + dx, 640, r, Math.PI, 0);
+          g.arc(x + dx + r, 642, r * 0.7, Math.PI, 0);
+          g.fill();
+        }
+      }
+    });
+
+    return { key, level, atmosphere: atmo.name, sky, layers };
+  }
+
+  function drawParallax() {
+    const bg = getParallax();
+    ctx.drawImage(bg.sky, 0, 0, VIEW.w, SKY_BOTTOM);
+    for (const layer of bg.layers) {
+      const travel = state.cameraX * layer.factor + state.fx.time * layer.drift;
+      const offset = -(((travel % PARALLAX_TILE_W) + PARALLAX_TILE_W) % PARALLAX_TILE_W);
+      if (layer.sprites) {
+        for (const sp of layer.sprites) {
+          let x = sp.x + offset;
+          if (x + sp.w < 0) x += PARALLAX_TILE_W;
+          if (x > VIEW.w) continue;
+          ctx.drawImage(sp.canvas, x, sp.y, sp.w, sp.h);
+          if (x + PARALLAX_TILE_W < VIEW.w) ctx.drawImage(sp.canvas, x + PARALLAX_TILE_W, sp.y, sp.w, sp.h);
+        }
+        continue;
+      }
+      // Döşemeler 1 px üst üste biner: kesirli piksel sınırında açık renkli dikiş çizgisi oluşmaz.
+      ctx.drawImage(layer.canvas, offset, layer.y, PARALLAX_TILE_W + 1, layer.h);
+      ctx.drawImage(layer.canvas, offset + PARALLAX_TILE_W - 1, layer.y, PARALLAX_TILE_W + 1, layer.h);
+    }
+  }
+
+  /* ---------- Parçacıklar ve efektler ---------- */
+
+  // Üst sınırlar: telefon performansı için. Hareket azaltma açıkken daha düşük.
+  const MAX_PARTICLES = 180;
+  const MAX_PARTICLES_REDUCED = 60;
+  const MAX_FIREWORKS = 260;
+  const MAX_FIREWORKS_REDUCED = 90;
+  const MAX_RINGS = 6;
+  const SHAKE_MAX_PX = 3;
+
+  function particleCap() {
+    return reducedMotionQuery.matches ? MAX_PARTICLES_REDUCED : MAX_PARTICLES;
+  }
+
+  function fireworkCap() {
+    return reducedMotionQuery.matches ? MAX_FIREWORKS_REDUCED : MAX_FIREWORKS;
+  }
+
+  // Hareket azaltma açıkken yoğun efektler seyreltilir.
+  function fxIntensity() {
+    return reducedMotionQuery.matches ? 0.35 : 1;
+  }
+
+  function pushParticle(p) {
+    if (document.hidden || state.particles.length >= particleCap()) return false;
+    state.particles.push(p);
+    return true;
+  }
+
+  function spawnDust(x, y, direction, count = 3) {
+    for (let i = 0; i < count; i += 1) {
+      pushParticle({
+        kind: "dust",
+        x,
+        y,
+        vx: direction * rand(20, 55) + rand(-8, 8),
+        vy: -rand(12, 32),
+        life: 0.34,
+        maxLife: 0.34,
+        size: rand(4, 8),
+        gravity: 160
+      });
+    }
+  }
+
+  function spawnJumpDust(x, y) {
+    const count = Math.round(8 * fxIntensity());
+    for (let i = 0; i < count; i += 1) {
+      const dir = i % 2 === 0 ? 1 : -1;
+      pushParticle({ kind: "dust", x: x + dir * rand(4, 14), y, vx: dir * rand(60, 130), vy: -rand(5, 25), life: 0.3, maxLife: 0.3, size: rand(4, 7), gravity: 60 });
+    }
+  }
+
+  function spawnLandingDust(x, y, fallSpeed) {
+    const strength = Math.min(1, fallSpeed / MAX_FALL);
+    const count = Math.round((4 + strength * 8) * fxIntensity());
+    for (let i = 0; i < count; i += 1) {
+      const dir = i % 2 === 0 ? 1 : -1;
+      pushParticle({ kind: "dust", x: x + dir * rand(6, 18), y, vx: dir * rand(50, 90 + strength * 90), vy: -rand(20, 60 + strength * 50), life: 0.42, maxLife: 0.42, size: rand(5, 9), gravity: 180 });
+    }
+  }
+
+  function spawnSparks(x, y, count, colors, speed = 120, life = 0.5) {
+    const n = Math.round(count * fxIntensity());
+    for (let i = 0; i < n; i += 1) {
+      const angle = (Math.PI * 2 * i) / n + Math.random() * 0.4;
+      const v = speed * (0.55 + Math.random() * 0.6);
+      pushParticle({ kind: "spark", x, y, vx: Math.cos(angle) * v, vy: Math.sin(angle) * v - 40, life, maxLife: life, size: rand(3, 5), gravity: 220, color: colors[i % colors.length] });
+    }
+  }
+
+  function spawnCoinSparkle(x, y) {
+    spawnSparks(x, y, 8, ["#fff3a0", "#ffd33f", "#ffffff"], 130, 0.45);
+  }
+
+  function spawnBoxHitFx(box) {
+    spawnSparks(box.x + box.w / 2, box.y + (box.kind === "bossBox" ? box.h / 2 : box.h), 6, ["#fff7bf", "#ffd557"], 110, 0.4);
+  }
+
+  function spawnEnemyDefeatPuff(e) {
+    spawnSparks(e.x + e.w / 2, e.y + e.h * 0.4, 7, ["#ffffff", "#e9d5ff", "#ffd166"], 140, 0.5);
+    addRing(e.x + e.w / 2, footY(e) - 10, 70, 0.35, "rgba(255, 255, 255, 0.8)");
+  }
+
+  function addRing(x, y, maxR, life, color) {
+    if (reducedMotionQuery.matches || state.fx.rings.length >= MAX_RINGS) return;
+    state.fx.rings.push({ x, y, r: 8, maxR, life, maxLife: life, color });
+  }
+
+  function shakeScreen(strength, duration) {
+    // Yalnızca özel anlarda, en fazla birkaç piksel; hareket azaltma açıkken hiç sallama yok.
+    if (reducedMotionQuery.matches) return;
+    state.fx.shakeStrength = Math.min(SHAKE_MAX_PX, strength);
+    state.fx.shakeDuration = duration;
+    state.fx.shakeTime = duration;
+  }
+
+  function onBossHitFx() {
+    const boss = state.boss;
+    boss.hitFlash = 0.2;
+    const cx = boss.x + boss.w / 2;
+    const cy = boss.y + boss.h * 0.45;
+    addRing(cx, cy, 150, 0.45, "rgba(255, 235, 170, 0.9)");
+    spawnSparks(cx, cy, 10, ["#fff3a0", "#ff9f2d", "#ffffff"], 180, 0.5);
+    shakeScreen(3, 0.18);
+  }
+
+  function showAnswerFx(result) {
+    state.pendingAnswerFx = result;
+    dialog.classList.remove("answer-correct", "answer-wrong");
+    dialog.classList.add(result === "correct" ? "answer-correct" : "answer-wrong");
+  }
+
+  // Soru kapanınca oyun alanında kısa geri bildirim: doğru → yeşil-altın parlama, yanlış → yumuşak kırmızı.
+  function playPendingAnswerFx() {
+    const result = state.pendingAnswerFx;
+    state.pendingAnswerFx = null;
+    dialog.classList.remove("answer-correct", "answer-wrong");
+    if (result === "correct") {
+      state.fx.successGlow = 0.6;
+      spawnSparks(player.x + player.w / 2, player.y + player.h * 0.4, 14, ["#7ee787", "#ffd33f", "#ffffff"], 170, 0.6);
+      addRing(player.x + player.w / 2, player.y + player.h * 0.5, 110, 0.5, "rgba(126, 231, 135, 0.9)");
+    } else if (result === "wrong") {
+      state.fx.wrongPulse = 0.35;
+    }
+  }
+
+  function updateFx(dt) {
+    const fx = state.fx;
+    fx.time += dt;
+    fx.shakeTime = Math.max(0, fx.shakeTime - dt);
+    fx.successGlow = Math.max(0, fx.successGlow - dt);
+    fx.wrongPulse = Math.max(0, fx.wrongPulse - dt);
+    if (state.boss.hitFlash) state.boss.hitFlash = Math.max(0, state.boss.hitFlash - dt);
+    let n = 0;
+    for (const p of state.particles) {
+      p.life -= dt;
+      if (p.life <= 0) continue;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += (p.gravity || 0) * dt;
+      p.vx *= 1 - Math.min(1, dt * 1.5);
+      state.particles[n] = p;
+      n += 1;
+    }
+    state.particles.length = n;
+    let r = 0;
+    for (const ring of fx.rings) {
+      ring.life -= dt;
+      if (ring.life <= 0) continue;
+      ring.r = 8 + (ring.maxR - 8) * (1 - ring.life / ring.maxLife);
+      fx.rings[r] = ring;
+      r += 1;
+    }
+    fx.rings.length = r;
+  }
+
+  function drawParticles() {
+    ctx.save();
+    for (const p of state.particles) {
+      const t = Math.max(0, p.life / p.maxLife);
+      if (p.kind === "spark") {
+        ctx.globalAlpha = t;
+        ctx.fillStyle = p.color;
+        const s = p.size * (0.6 + t * 0.4);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y - s * 1.6);
+        ctx.lineTo(p.x + s * 0.6, p.y);
+        ctx.lineTo(p.x, p.y + s * 1.6);
+        ctx.lineTo(p.x - s * 0.6, p.y);
+        ctx.closePath();
+        ctx.fill();
+      } else if (p.kind === "smoke") {
+        ctx.globalAlpha = t * 0.35;
+        ctx.fillStyle = p.color || "#d9dde3";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * (1.6 - t * 0.6), 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.globalAlpha = t * 0.42;
+        ctx.fillStyle = p.color || "#d7b37c";
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, p.size, p.size * 0.56, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    for (const ring of state.fx.rings) {
+      const t = ring.life / ring.maxLife;
+      ctx.globalAlpha = t;
+      ctx.strokeStyle = ring.color;
+      ctx.lineWidth = 1 + 5 * t;
       ctx.beginPath();
-      ctx.ellipse(x, 645, 170, hill, 0, 0, Math.PI * 2);
+      ctx.arc(ring.x, ring.y, ring.r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Ekran boyutunda hafif kenar karartması (yanlış cevap için kırmızı tonlu), bir kez üretilir.
+  const vignetteSprite = (() => {
+    const c = makeCanvas(320, 180);
+    const g = c.getContext("2d");
+    const grad = g.createRadialGradient(160, 90, 50, 160, 90, 190);
+    grad.addColorStop(0, "rgba(231, 53, 79, 0)");
+    grad.addColorStop(1, "rgba(231, 53, 79, 0.55)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 320, 180);
+    return c;
+  })();
+
+  function drawScreenFx() {
+    const fx = state.fx;
+    if (fx.successGlow > 0) {
+      const t = fx.successGlow / 0.6;
+      const px = player.x + player.w / 2 - state.cameraX;
+      const py = player.y + player.h / 2;
+      const glow = ctx.createRadialGradient(px, py, 10, px, py, 220);
+      glow.addColorStop(0, `rgba(255, 230, 120, ${0.45 * t})`);
+      glow.addColorStop(0.5, `rgba(126, 231, 135, ${0.22 * t})`);
+      glow.addColorStop(1, "rgba(126, 231, 135, 0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(px - 220, py - 220, 440, 440);
+    }
+    if (fx.wrongPulse > 0) {
+      ctx.save();
+      ctx.globalAlpha = (fx.wrongPulse / 0.35) * 0.5;
+      ctx.drawImage(vignetteSprite, 0, 0, VIEW.w, VIEW.h);
+      ctx.restore();
+    }
+  }
+
+  /* ---------- Coin ve soru kutusu (önceden çizilmiş sprite'lar) ---------- */
+
+  let coinSprite = null;
+
+  function getCoinSprite() {
+    const scale = cacheScale();
+    if (coinSprite && coinSprite.scale === scale) return coinSprite;
+    const size = 34;
+    const c = makeCanvas(size * scale, size * scale);
+    const g = c.getContext("2d");
+    g.scale(scale, scale);
+    g.translate(size / 2, size / 2);
+    const grad = g.createRadialGradient(-7, -8, 4, 0, 0, 16);
+    grad.addColorStop(0, "#fff7a5");
+    grad.addColorStop(0.55, "#ffd33f");
+    grad.addColorStop(1, "#d48412");
+    g.fillStyle = grad;
+    g.beginPath();
+    g.arc(0, 0, 15, 0, Math.PI * 2);
+    g.fill();
+    g.lineWidth = 3;
+    g.strokeStyle = "#a96d11";
+    g.stroke();
+    g.strokeStyle = "rgba(169, 109, 17, 0.45)";
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.arc(0, 0, 10, 0, Math.PI * 2);
+    g.stroke();
+    g.fillStyle = "rgba(255, 255, 255, 0.5)";
+    g.fillRect(-3, -10, 6, 20);
+    coinSprite = { canvas: c, size, scale };
+    return coinSprite;
+  }
+
+  function drawCoin(c) {
+    if (c.collected) return;
+    const sprite = getCoinSprite();
+    const cx = c.x + c.w / 2;
+    const cy = c.y + c.h / 2;
+    const scaleX = 0.66 + Math.abs(Math.cos(c.spin)) * 0.34;
+    const s = sprite.size;
+    ctx.drawImage(sprite.canvas, cx - (s / 2) * scaleX, cy - s / 2, s * scaleX, s);
+    // Dönerken kısa parlama: coin yüzü tam öne döndüğünde küçük bir yıldız
+    const glint = Math.cos(c.spin);
+    if (glint > 0.97) {
+      const a = (glint - 0.97) / 0.03;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      const gx = cx - 5;
+      const gy = cy - 7;
+      ctx.moveTo(gx, gy - 7);
+      ctx.lineTo(gx + 1.6, gy - 1.6);
+      ctx.lineTo(gx + 7, gy);
+      ctx.lineTo(gx + 1.6, gy + 1.6);
+      ctx.lineTo(gx, gy + 7);
+      ctx.lineTo(gx - 1.6, gy + 1.6);
+      ctx.lineTo(gx - 7, gy);
+      ctx.lineTo(gx - 1.6, gy - 1.6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  const boxSprites = { scale: 0, closed: null, used: null };
+
+  function getBoxSprite(used) {
+    const scale = cacheScale();
+    if (boxSprites.scale !== scale) {
+      boxSprites.scale = scale;
+      boxSprites.closed = renderBoxSprite(false, scale);
+      boxSprites.used = renderBoxSprite(true, scale);
+    }
+    return used ? boxSprites.used : boxSprites.closed;
+  }
+
+  function renderBoxSprite(used, scale) {
+    const size = 54;
+    const depth = 6; // alt/ön kenar kalınlığı (2.5D)
+    const c = makeCanvas(size * scale, (size + depth) * scale);
+    const g = c.getContext("2d");
+    g.scale(scale, scale);
+    g.fillStyle = used ? "#5f6870" : "#a55e17";
+    roundRect(0, depth, size, size, 9, g);
+    g.fill();
+    const grad = g.createLinearGradient(0, 0, 0, size);
+    grad.addColorStop(0, used ? "#c5ccd2" : "#ffdf6e");
+    grad.addColorStop(1, used ? "#7d8790" : "#e28a29");
+    g.fillStyle = grad;
+    roundRect(0, 0, size, size, 9, g);
+    g.fill();
+    g.lineWidth = 3;
+    g.strokeStyle = used ? "#626b73" : "#a55e17";
+    g.stroke();
+    g.strokeStyle = "rgba(255, 255, 255, 0.55)";
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(8, 3.5);
+    g.lineTo(size - 8, 3.5);
+    g.stroke();
+    // Köşe perçinleri
+    g.fillStyle = used ? "rgba(255, 255, 255, 0.35)" : "rgba(255, 247, 191, 0.8)";
+    for (const [x, y] of [[8, 8], [size - 8, 8], [8, size - 8], [size - 8, size - 8]]) {
+      g.beginPath();
+      g.arc(x, y, 2.2, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.fillStyle = used ? "#e9edf0" : "#fff7bf";
+    g.font = "900 36px system-ui, sans-serif";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.fillText(used ? "!" : "?", size / 2, size / 2 + 1);
+    return { canvas: c, w: size, h: size + depth };
+  }
+
+  function drawQuestionBox(box) {
+    const bumpK = Math.sin(box.bump * Math.PI);
+    const y = box.y - bumpK * 9;
+    const used = box.state === "used";
+    const sprite = getBoxSprite(used);
+    // Vurulunca hafif sıkışma (görsel)
+    const sy = 1 + bumpK * 0.08;
+    const sx = 1 - bumpK * 0.05;
+    const cx = box.x + box.w / 2;
+    if (!used) {
+      // Kapalı kutularda hafif nabız gibi parlama
+      const pulse = 0.5 + 0.5 * Math.sin(state.fx.time * 3 + box.x * 0.01);
+      ctx.save();
+      ctx.globalAlpha = 0.18 + pulse * 0.14;
+      ctx.fillStyle = "#fff2a8";
+      roundRect(box.x - 5, y - 5, box.w + 10, box.h + 10, 13);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.drawImage(sprite.canvas, cx - (sprite.w * sx) / 2, y + box.h - box.h * sy, sprite.w * sx, sprite.h * sy);
+    if (bumpK > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = bumpK * 0.45;
+      ctx.fillStyle = "#ffffff";
+      roundRect(cx - (box.w * sx) / 2, y + box.h - box.h * sy, box.w * sx, box.h * sy, 9);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  /* ---------- Kalkan ---------- */
+
+  function drawShield(actor) {
+    const cx = actor.x + actor.w / 2;
+    const cy = actor.y + actor.h / 2;
+    const t = state.fx.time;
+    const pulse = 1 + Math.sin(t * 8.3) * 0.04;
+    ctx.save();
+    ctx.globalAlpha = 0.62;
+    ctx.strokeStyle = "#2cd4f0";
+    ctx.fillStyle = "rgba(97, 225, 255, 0.16)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 4, 58 * pulse, 72 * pulse, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 4, 47 * pulse, 60 * pulse, 0, -0.9, 1.1);
+    ctx.stroke();
+    // Enerji halkası: kalkanın çevresinde dönen iki kısa yay ve üç enerji noktası
+    const spin = reducedMotionQuery.matches ? 0 : t * 2.4;
+    ctx.globalAlpha = 0.75;
+    ctx.strokeStyle = "#a5f3fc";
+    ctx.lineWidth = 3;
+    for (const offset of [0, Math.PI]) {
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 4, 64 * pulse, 78 * pulse, 0, spin + offset, spin + offset + 0.7);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#e0fbff";
+    for (let i = 0; i < 3; i += 1) {
+      const a = -spin * 1.3 + (i * Math.PI * 2) / 3;
+      ctx.beginPath();
+      ctx.arc(cx + Math.cos(a) * 64 * pulse, cy + 4 + Math.sin(a) * 78 * pulse, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /* ---------- Boss, roket ve havai fişek görselleri ---------- */
+
+  function drawBoss() {
+    const boss = state.boss;
+    if (!boss.active && !boss.defeated) return;
+    if (boss.defeated && boss.health <= 0) return;
+    const shakeX = boss.shake > 0 && !reducedMotionQuery.matches ? Math.sin(performance.now() / 22) * 8 * boss.shake : 0;
+    const cx = boss.x + boss.w / 2 + shakeX;
+    const foot = boss.y + boss.h;
+    drawGroundShadow(cx, foot, 190);
+    ctx.save();
+    ctx.translate(cx, foot);
+    const bossImage = currentBossImage();
+    if (bossImage.complete && bossImage.naturalWidth > 0) {
+      ctx.drawImage(bossImage, -132, -250, 264, 250);
+      if (boss.hitFlash > 0) {
+        // Kısa beyaz vuruş parlaması: aynı görsel eklemeli karışımla üstüne çizilir
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = Math.min(1, boss.hitFlash / 0.2) * 0.6;
+        ctx.drawImage(bossImage, -132, -250, 264, 250);
+      }
+    } else if (assets.enemy.complete && assets.enemy.naturalWidth > 0) {
+      ctx.scale(-1, 1);
+      ctx.drawImage(assets.enemy, -112, -188, 224, 188);
+    } else {
+      ctx.fillStyle = "#c88be2";
+      roundRect(-72, -168, 144, 168, 8);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  const ROCKET_SPRITE = { cellW: 256, cellH: 72, drawW: 124 };
+
+  function drawRocket(rocket) {
+    const img = assets.rockets;
+    if (!(img.complete && img.naturalWidth > 0)) {
+      drawRocketProcedural(rocket);
+      return;
+    }
+    const t = state.fx.time;
+    const flicker = 1 + Math.sin(t * 38 + rocket.salvoId + rocket.sprite) * 0.14;
+    const dw = ROCKET_SPRITE.drawW;
+    const dh = (dw * ROCKET_SPRITE.cellH) / ROCKET_SPRITE.cellW;
+    const back = -dw * 0.42;
+    ctx.save();
+    ctx.translate(rocket.x + rocket.w / 2, rocket.y + rocket.h / 2);
+    ctx.rotate(rocket.angle);
+    // İz: uzun, soluk kuyruk
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = rocket.trailColor;
+    ctx.beginPath();
+    ctx.moveTo(back - 120 * flicker, 0);
+    ctx.lineTo(back - 10, -dh * 0.34);
+    ctx.lineTo(back, 0);
+    ctx.lineTo(back - 10, dh * 0.34);
+    ctx.closePath();
+    ctx.fill();
+    // Alev: dış renkli, iç sarı çekirdek
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = rocket.trailColor;
+    ctx.beginPath();
+    ctx.moveTo(back - 44 * flicker, 0);
+    ctx.quadraticCurveTo(back - 12, -dh * 0.42, back + 4, -dh * 0.2);
+    ctx.lineTo(back + 4, dh * 0.2);
+    ctx.quadraticCurveTo(back - 12, dh * 0.42, back - 44 * flicker, 0);
+    ctx.fill();
+    ctx.fillStyle = "#fff4b0";
+    ctx.beginPath();
+    ctx.moveTo(back - 24 * flicker, 0);
+    ctx.quadraticCurveTo(back - 6, -dh * 0.2, back + 4, -dh * 0.1);
+    ctx.lineTo(back + 4, dh * 0.1);
+    ctx.quadraticCurveTo(back - 6, dh * 0.2, back - 24 * flicker, 0);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.drawImage(img, 0, (rocket.sprite || 0) * ROCKET_SPRITE.cellH, ROCKET_SPRITE.cellW, ROCKET_SPRITE.cellH, -dw / 2, -dh / 2, dw, dh);
+    ctx.restore();
+  }
+
+  // Roketin arkasında küçük duman izi (üst sınırlı; yalnızca oyun güncellenirken üretilir)
+  function spawnRocketSmoke(rocket) {
+    if (Math.random() >= 0.35 * fxIntensity()) return;
+    const back = -ROCKET_SPRITE.drawW * 0.42 - 20;
+    const bx = rocket.x + rocket.w / 2 + Math.cos(rocket.angle) * back;
+    const by = rocket.y + rocket.h / 2 + Math.sin(rocket.angle) * back;
+    pushParticle({ kind: "smoke", x: bx, y: by, vx: rand(-15, 15), vy: rand(-20, 5), life: 0.5, maxLife: 0.5, size: rand(5, 8), gravity: -20 });
+  }
+
+  function drawFireworks(depth) {
+    for (const p of state.fireworks) {
+      if ((p.depth || "near") !== depth) continue;
+      const alpha = Math.max(0, p.life / p.maxLife);
+      if (depth === "near") {
+        // Yakın parçacıklarda hafif hale: derinlik hissi
+        ctx.globalAlpha = alpha * 0.22;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = depth === "far" ? alpha * 0.6 : alpha;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  function drawPlatform(p) {
-    const top = p.y;
-    const theme = currentTheme();
-    const topGradient = ctx.createLinearGradient(0, top, 0, top + p.h);
-    topGradient.addColorStop(0, p.type === "ground" ? theme.groundTop : theme.grass);
-    topGradient.addColorStop(0.22, p.type === "ground" ? theme.groundMid : theme.groundTop);
-    topGradient.addColorStop(0.23, theme.dirtTop);
-    topGradient.addColorStop(1, theme.dirtBottom);
-    ctx.fillStyle = topGradient;
-    roundRect(p.x, p.y, p.w, p.h, 8);
+  function drawBossCelebration() {
+    if (!state.bossCelebration) return;
+    ctx.save();
+    drawFireworks("far");
+    ctx.globalAlpha = 0.84;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+    roundRect(360, 248, 560, 156, 8);
     ctx.fill();
-
-    ctx.fillStyle = theme.grass;
-    roundRect(p.x, p.y, p.w, 12, 6);
-    ctx.fill();
-
-    ctx.strokeStyle = "rgba(34, 87, 45, 0.26)";
+    ctx.strokeStyle = "rgba(35, 47, 74, 0.16)";
     ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y + 13);
-    ctx.lineTo(p.x + p.w, p.y + 13);
     ctx.stroke();
 
-    ctx.fillStyle = "rgba(255, 238, 185, 0.16)";
-    for (let x = p.x + 18; x < p.x + p.w - 10; x += 42) {
-      ctx.fillRect(x, p.y + 28, 18, 5);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#172033";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "900 48px system-ui, sans-serif";
+    ctx.fillText(state.bossCelebration.title, VIEW.w / 2, 310);
+    ctx.font = "800 28px system-ui, sans-serif";
+    ctx.fillText(state.bossCelebration.subtitle, VIEW.w / 2, 358);
+    drawFireworks("near");
+    ctx.restore();
+  }
+
+  /* ---------- Kamera ---------- */
+
+  // Kamera sınırları değişmez; yalnızca yumuşatma ve küçük bir yatay ileri bakış eklenir.
+  const CAMERA = {
+    anchor: 0.42, // oyuncunun ekrandaki yatay konumu (oran)
+    lookAhead: 70, // tam hızda koşarken ileriye bakış (px)
+    lookAheadRate: 2.5, // ileri bakışın yerleşme hızı (1/sn)
+    followRate: 5.7, // eski 0.09/kare (60 FPS) takip hızına eşdeğer, FPS'ten bağımsız
+    reducedFollowRate: 14 // hareket azaltma açıkken daha doğrudan takip, ileri bakış yok
+  };
+
+  function updateCamera(dt = 1 / 60) {
+    const reduced = reducedMotionQuery.matches;
+    const speedRatio = Math.min(1, Math.abs(player.vx) / MOVE_SPEED);
+    const lookTarget = reduced ? 0 : player.facing * speedRatio * CAMERA.lookAhead;
+    state.cameraLook += (lookTarget - state.cameraLook) * (1 - Math.exp(-CAMERA.lookAheadRate * dt));
+    const target = player.x + player.w / 2 - VIEW.w * CAMERA.anchor + state.cameraLook;
+    const rate = reduced ? CAMERA.reducedFollowRate : CAMERA.followRate;
+    state.cameraX += (target - state.cameraX) * (1 - Math.exp(-rate * dt));
+    state.cameraX = Math.max(0, Math.min(WORLD.w - VIEW.w, state.cameraX));
+  }
+
+  /* ---------- Ana çizim ---------- */
+
+  function draw() {
+    ctx.setTransform(state.renderScale, 0, 0, state.renderScale, 0, 0);
+    ctx.clearRect(0, 0, VIEW.w, VIEW.h);
+    let shakeX = 0;
+    let shakeY = 0;
+    if (state.fx.shakeTime > 0) {
+      const k = (state.fx.shakeTime / state.fx.shakeDuration) * state.fx.shakeStrength;
+      shakeX = Math.sin(state.fx.time * 83) * k;
+      shakeY = Math.cos(state.fx.time * 71) * k * 0.6;
     }
+    drawParallax();
+    ctx.save();
+    ctx.translate(-Math.round(state.cameraX) + shakeX, shakeY);
+    // Ekran dışındaki nesneler çizilmez
+    const viewLeft = state.cameraX - 80;
+    const viewRight = state.cameraX + VIEW.w + 80;
+    const onScreen = (o) => o.x + o.w >= viewLeft && o.x <= viewRight;
+    platforms.forEach((p, i) => {
+      if (onScreen(p)) drawPlatform(p, i);
+    });
+    drawFinishGate();
+    for (const b of boxes) if (onScreen(b)) drawQuestionBox(b);
+    drawBossFightObjects();
+    for (const c of coins) if (onScreen(c)) drawCoin(c);
+    for (const e of enemies) if (onScreen(e)) drawEnemy(e);
+    drawBoss();
+    drawPlayer();
+    drawParticles();
+    if (state.debug) drawDebug();
+    ctx.restore();
+    drawScreenFx();
+    drawBossHud();
+    drawBossCelebration();
+    if (state.debug) drawDebugOverlay();
+  }
+
+  function drawDebug() {
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255, 0, 0, 0.9)";
+    ctx.strokeRect(player.x, player.y, player.w, player.h);
+    ctx.strokeStyle = "rgba(0, 80, 255, 0.8)";
+    for (const p of platforms) ctx.strokeRect(p.x, p.y, p.w, p.h);
+    for (const b of boxes) ctx.strokeRect(b.x, b.y, b.w, b.h);
+    ctx.strokeStyle = "rgba(255, 230, 0, 0.9)";
+    for (const c of coins) if (!c.collected) ctx.strokeRect(c.x, c.y, c.w, c.h);
+    ctx.strokeStyle = "rgba(255, 0, 200, 0.9)";
+    for (const e of enemies) if (!e.defeated) ctx.strokeRect(e.x, e.y, e.w, e.h);
+    // Ayak noktası
+    ctx.fillStyle = "#ff00c8";
+    ctx.beginPath();
+    ctx.arc(player.x + player.w / 2, footY(player), 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Yalnızca debug açıkken (F2 veya ?debug=1): animasyon, kare, FPS, parçacık, kamera
+  function drawDebugOverlay() {
+    const lines = [
+      `Animasyon: ${player.anim.name} (${player.anim.frame})`,
+      `FPS: ${Math.round(state.fps)}`,
+      `Parçacık: ${state.particles.length}/${particleCap()}  Fişek: ${state.fireworks.length}`,
+      `Kamera: x=${Math.round(state.cameraX)} ileri=${Math.round(state.cameraLook)}`,
+      `Hareket azaltma: ${reducedMotionQuery.matches ? "açık" : "kapalı"}`
+    ];
+    ctx.save();
+    ctx.fillStyle = "rgba(15, 23, 42, 0.78)";
+    ctx.fillRect(VIEW.w - 360, VIEW.h - 22 - lines.length * 20, 350, lines.length * 20 + 12);
+    ctx.fillStyle = "#e2e8f0";
+    ctx.font = "600 14px ui-monospace, Menlo, monospace";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    lines.forEach((line, i) => ctx.fillText(line, VIEW.w - 350, VIEW.h - 16 - lines.length * 20 + i * 20));
+    ctx.restore();
   }
 
   function drawFinishGate() {
@@ -1657,30 +2943,6 @@
     for (const rocket of state.boss.rockets) drawRocket(rocket);
   }
 
-  function drawBoss() {
-    const boss = state.boss;
-    if (!boss.active && !boss.defeated) return;
-    if (boss.defeated && boss.health <= 0) return;
-    const shakeX = boss.shake > 0 && !reducedMotionQuery.matches ? Math.sin(performance.now() / 22) * 8 * boss.shake : 0;
-    const cx = boss.x + boss.w / 2 + shakeX;
-    const foot = boss.y + boss.h;
-    drawShadow(cx, foot, 132);
-    ctx.save();
-    ctx.translate(cx, foot);
-    const bossImage = currentBossImage();
-    if (bossImage.complete && bossImage.naturalWidth > 0) {
-      ctx.drawImage(bossImage, -132, -250, 264, 250);
-    } else if (assets.enemy.complete && assets.enemy.naturalWidth > 0) {
-      ctx.scale(-1, 1);
-      ctx.drawImage(assets.enemy, -112, -188, 224, 188);
-    } else {
-      ctx.fillStyle = "#c88be2";
-      roundRect(-72, -168, 144, 168, 8);
-      ctx.fill();
-    }
-    ctx.restore();
-  }
-
   function drawBossHud() {
     if (state.bossCelebration) return;
     if (!state.boss.active && !state.boss.defeated) return;
@@ -1705,37 +2967,6 @@
     ctx.restore();
   }
 
-  function drawBossCelebration() {
-    if (!state.bossCelebration) return;
-    ctx.save();
-    for (const p of state.fireworks) {
-      const alpha = Math.max(0, p.life / p.maxLife);
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.globalAlpha = 0.84;
-    ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
-    roundRect(360, 248, 560, 156, 8);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(35, 47, 74, 0.16)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = "#172033";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = "900 48px system-ui, sans-serif";
-    ctx.fillText(state.bossCelebration.title, VIEW.w / 2, 310);
-    ctx.font = "800 28px system-ui, sans-serif";
-    ctx.fillText(state.bossCelebration.subtitle, VIEW.w / 2, 358);
-    ctx.restore();
-  }
-
   function drawFire(fire) {
     ctx.save();
     const pulse = Math.sin(performance.now() / 80) * 4;
@@ -1753,7 +2984,8 @@
     ctx.restore();
   }
 
-  function drawRocket(rocket) {
+  // Roket görseli yüklenemezse eski prosedürel çizim kullanılır.
+  function drawRocketProcedural(rocket) {
     const pulse = 1 + Math.sin(performance.now() / 45 + rocket.salvoId) * 0.12;
     ctx.save();
     ctx.translate(rocket.x + rocket.w / 2, rocket.y + rocket.h / 2);
@@ -1810,180 +3042,15 @@
     ctx.restore();
   }
 
-  function drawQuestionBox(box) {
-    const y = box.y - Math.sin(box.bump * Math.PI) * 9;
-    const used = box.state === "used";
-    const g = ctx.createLinearGradient(0, y, 0, y + box.h);
-    g.addColorStop(0, used ? "#b7bec4" : "#ffd557");
-    g.addColorStop(1, used ? "#7d8790" : "#e28a29");
-    ctx.fillStyle = g;
-    roundRect(box.x, y, box.w, box.h, 8);
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = used ? "#626b73" : "#a55e17";
-    ctx.stroke();
-    ctx.fillStyle = used ? "#e9edf0" : "#fff7bf";
-    ctx.font = "900 36px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(used ? "!" : "?", box.x + box.w / 2, y + box.h / 2 + 1);
-  }
-
-  function drawCoin(c) {
-    if (c.collected) return;
-    const cx = c.x + c.w / 2;
-    const cy = c.y + c.h / 2;
-    const scaleX = 0.66 + Math.abs(Math.cos(c.spin)) * 0.34;
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.scale(scaleX, 1);
-    const g = ctx.createRadialGradient(-7, -8, 4, 0, 0, 16);
-    g.addColorStop(0, "#fff7a5");
-    g.addColorStop(0.55, "#ffd33f");
-    g.addColorStop(1, "#d48412");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(0, 0, c.w / 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#a96d11";
-    ctx.stroke();
-    ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
-    ctx.fillRect(-3, -10, 6, 20);
-    ctx.restore();
-  }
-
-  function drawActor(actor) {
-    const isPlayer = actor.kind === "player";
-    const sprite = actor.sprite;
-    if (actor.defeated && actor.defeatTimer <= 0) return;
-    const moving = Math.abs(actor.vx) > 5;
-    const jumpState = actor.vy < -30 ? "jump" : actor.vy > 60 && !actor.grounded ? "fall" : moving ? "run" : "idle";
-    const runCycle = Math.sin(actor.animTime * 18);
-    const bob = jumpState === "run" ? Math.abs(runCycle) * 5 : jumpState === "idle" ? Math.sin(actor.animTime * 4) * 1.2 : 0;
-    const squash = jumpState === "run" ? 1 + Math.abs(runCycle) * 0.035 : jumpState === "jump" ? 1.04 : jumpState === "fall" ? 0.98 : 1;
-    const stretchX = jumpState === "run" ? 1 - Math.abs(runCycle) * 0.025 : 1;
-    const tilt = jumpState === "run" ? actor.facing * runCycle * 0.035 : jumpState === "jump" ? actor.facing * -0.05 : jumpState === "fall" ? actor.facing * 0.04 : 0;
-    const sx = actor.facing < 0 ? -1 : 1;
-    const foot = footY(actor);
-    const playerFrame = isPlayer ? getPlayerFrame(jumpState, moving, actor.animTime) : null;
-    const defeatScale = actor.defeated ? Math.max(0.28, actor.defeatTimer / 0.45) : 1;
-    const sourceAspect = playerFrame ? playerFrame.sw / playerFrame.sh : null;
-    const baseDrawH = playerFrame ? 132 : sprite.drawH;
-    const baseDrawW = playerFrame ? Math.max(74, Math.min(94, baseDrawH * sourceAspect)) : sprite.drawW;
-    const drawW = baseDrawW * stretchX * (isPlayer ? 1 : 1 + Math.sin(actor.animTime * 5) * 0.01);
-    const drawH = baseDrawH * squash * defeatScale;
-    const drawX = actor.x + actor.w / 2 - drawW / 2 + sprite.footOffsetX;
-    const drawY = foot - drawH + sprite.footOffsetY + bob;
-
-    if (isPlayer && actor.shield > 0) drawShield(actor);
-    if (isPlayer && actor.invuln > 0 && Math.floor(actor.invuln * 16) % 2 === 0) return;
-
-    drawShadow(actor.x + actor.w / 2, foot, isPlayer ? 44 : 54);
-    ctx.save();
-    ctx.translate(actor.x + actor.w / 2, foot);
-    ctx.rotate(isPlayer ? tilt : 0);
-    ctx.scale(sx, 1);
-    const localX = sx > 0 ? drawX - (actor.x + actor.w / 2) : -(drawX - (actor.x + actor.w / 2)) - drawW;
-    const localY = drawY - foot;
-    if (playerFrame && sprite.sheet.complete && sprite.sheet.naturalWidth > 0) {
-      const k = sprite.sheet.naturalWidth / SPRITE_SHEET_SOURCE_WIDTH;
-      ctx.drawImage(sprite.sheet, playerFrame.sx * k, playerFrame.sy * k, playerFrame.sw * k, playerFrame.sh * k, localX, localY, drawW, drawH);
-    } else if (sprite.image.complete && sprite.image.naturalWidth > 0) {
-      if (actor.defeated) ctx.globalAlpha = Math.max(0.25, actor.defeatTimer / 0.45);
-      ctx.drawImage(sprite.image, localX, localY, drawW, drawH);
-    } else {
-      ctx.fillStyle = isPlayer ? "#2f85dc" : "#c88be2";
-      roundRect(localX, localY, drawW, drawH, 8);
-      ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  function getPlayerFrame(jumpState, moving, animTime) {
-    const frames = {
-      run: [
-        { sx: 339, sy: 62, sw: 310, sh: 496 },
-        { sx: 698, sy: 60, sw: 288, sh: 496 },
-        { sx: 1044, sy: 64, sw: 287, sh: 495 }
-      ],
-      jump: [
-        { sx: 698, sy: 60, sw: 288, sh: 496 }
-      ],
-      fall: [
-        { sx: 1044, sy: 64, sw: 287, sh: 495 }
-      ]
-    };
-    if (jumpState === "jump") return frames.jump[0];
-    if (jumpState === "fall") return frames.fall[0];
-    if (moving) return frames.run[Math.floor(animTime * 10) % frames.run.length];
-    return null;
-  }
-
-  function drawParticles() {
-    ctx.save();
-    for (const p of state.particles) {
-      const alpha = Math.max(0, p.life / p.maxLife);
-      ctx.globalAlpha = alpha * 0.42;
-      ctx.fillStyle = p.color || "#d7b37c";
-      ctx.beginPath();
-      ctx.ellipse(p.x, p.y, p.size, p.size * 0.56, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  function drawShield(actor) {
-    const cx = actor.x + actor.w / 2;
-    const cy = actor.y + actor.h / 2;
-    const pulse = 1 + Math.sin(performance.now() / 120) * 0.04;
-    ctx.save();
-    ctx.globalAlpha = 0.62;
-    ctx.strokeStyle = "#2cd4f0";
-    ctx.fillStyle = "rgba(97, 225, 255, 0.16)";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy + 4, 58 * pulse, 72 * pulse, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.globalAlpha = 0.9;
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy + 4, 47 * pulse, 60 * pulse, 0, -0.9, 1.1);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function drawShadow(cx, y, w) {
-    ctx.fillStyle = "rgba(20, 38, 35, 0.18)";
-    ctx.beginPath();
-    ctx.ellipse(cx, y + 6, w / 2, 8, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  function drawDebug() {
-    ctx.save();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "rgba(255, 0, 0, 0.9)";
-    ctx.strokeRect(player.x, player.y, player.w, player.h);
-    ctx.strokeStyle = "rgba(0, 80, 255, 0.8)";
-    for (const p of platforms) ctx.strokeRect(p.x, p.y, p.w, p.h);
-    for (const b of boxes) ctx.strokeRect(b.x, b.y, b.w, b.h);
-    ctx.strokeStyle = "rgba(255, 230, 0, 0.9)";
-    for (const c of coins) if (!c.collected) ctx.strokeRect(c.x, c.y, c.w, c.h);
-    ctx.restore();
-  }
-
-  function roundRect(x, y, w, h, r) {
-    const radius = Math.min(r, w / 2, h / 2);
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.arcTo(x + w, y, x + w, y + h, radius);
-    ctx.arcTo(x + w, y + h, x, y + h, radius);
-    ctx.arcTo(x, y + h, x, y, radius);
-    ctx.arcTo(x, y, x + w, y, radius);
-    ctx.closePath();
+  function roundRect(x, y, w, h, r, c = ctx) {
+    const radius = Math.max(0, Math.min(r, w / 2, h / 2));
+    c.beginPath();
+    c.moveTo(x + radius, y);
+    c.arcTo(x + w, y, x + w, y + h, radius);
+    c.arcTo(x + w, y + h, x, y + h, radius);
+    c.arcTo(x, y + h, x, y, radius);
+    c.arcTo(x, y, x + w, y, radius);
+    c.closePath();
   }
 
   function createSoundBoard() {
@@ -2053,8 +3120,10 @@
 
   function loop(now) {
     // rAF zaman damgası, tıklama anında alınan performance.now() değerinden küçük olabilir; negatif dt fiziği bozar.
-    const dt = Math.max(0, Math.min(1 / 30, (now - state.lastTime) / 1000));
+    const rawDt = (now - state.lastTime) / 1000;
+    const dt = Math.max(0, Math.min(1 / 30, rawDt));
     state.lastTime = now;
+    if (rawDt > 0 && rawDt < 1) state.fps += (1 / rawDt - state.fps) * 0.05;
     update(dt);
     draw();
     requestAnimationFrame(loop);
@@ -2229,6 +3298,37 @@
     coins,
     enemies,
     touchInput,
+    // Salt okunur görsel durum (testler ve debug için)
+    get currentAnimation() {
+      return player.anim.name;
+    },
+    get currentFrame() {
+      return player.anim.frame;
+    },
+    get particleCount() {
+      return state.particles.length;
+    },
+    get reducedMotion() {
+      return reducedMotionQuery.matches;
+    },
+    visual: {
+      PLAYER_FRAMES,
+      PLAYER_ANIMATIONS,
+      PLAYER_ANIM_TIMING,
+      CAMERA,
+      playerVisualState,
+      enemyVisualState,
+      particleCap,
+      fireworkCap,
+      maxShakePx: SHAKE_MAX_PX,
+      parallaxInfo(level) {
+        const bg = buildParallax(level, 0.25, "test");
+        return { atmosphere: bg.atmosphere, layers: bg.layers.map((l) => ({ id: l.id, factor: l.factor })), sky: LEVELS[level - 1].theme.skyTop };
+      },
+      spawnCoinSparkle,
+      onBossHitFx,
+      fx: state.fx
+    },
     test: {
       rectsOverlap,
       footY,
@@ -2240,6 +3340,9 @@
       hurtPlayer,
       isGameInteractive,
       joystickGeometry,
+      defeatEnemy,
+      damageBoss,
+      launchRocket,
       joystickDeadZone: JOYSTICK_DEAD_ZONE,
       moveSpeed: MOVE_SPEED
     }
