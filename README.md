@@ -12,6 +12,10 @@
   3. **Gün Batımı Kanyonu** — 100'e kadar işlemler, çarpım tablosu (2–9)
   4. **Ayışığı Zirvesi** — karışık işlemler, çarpma ağırlıklı
 - Seviye tanıtımı ve seviye sonu özeti (puan, coin, doğru/soru, doğruluk)
+- **Devam Et:** ilerleme her bölüm başında cihaza kaydedilir; uygulama kapanırsa aynı bölümün başından sürer
+- **Duraklatma:** sağ üstteki ⏸ düğmesi, masaüstünde <kbd>Esc</kbd> veya <kbd>P</kbd>; uygulama arka plana gidince otomatik
+- **Ayarlar:** ses ve hareket efektleri (Normal/Azaltılmış); ilk varsayılan cihazın "hareketi azalt" ayarından gelir
+- **Nasıl Oynanır** ekranı ve kurulum yardımı
 - Matematik soru kutuları: doğru cevap +50 puan ve geçici kalkan
 - Ekran içi çocuk dostu sayı tuş takımı (telefon klavyesine gerek yok)
 - Telefon, tablet ve masaüstünde çalışır; yatay kullanım için tasarlandı
@@ -37,6 +41,18 @@ Yön ve zıplama aynı anda kullanılabilir. Telefon dikey tutulursa oyun, cihaz
 - **Masaüstü (Chrome / Edge):** Adres çubuğundaki yükleme simgesi veya başlangıç ekranındaki "Uygulamayı Yükle" düğmesi.
 
 Kurduktan sonra oyunu bir kez açman yeterli; sonrasında internet olmadan da açılır.
+
+Tarayıcı doğrudan kurulum sunmuyorsa başlangıç ekranında **Kurulum Yardımı** adımları gösterilir. Yeni bir sürüm yayınlandığında oyunda **"Yeni sürüm hazır"** bildirimi çıkar; **Şimdi Güncelle** sayfayı bir kez yeniler, **Sonra** bildirimi kapatır. Güncelleme oyunun ortasında kendiliğinden uygulanmaz.
+
+### Cihazda saklanan veriler (localStorage)
+
+| Anahtar | İçerik |
+|---|---|
+| `mavi-matematik-save` | Bölüm başı kaydı: `version`, seviye, bölüm başındaki toplam skor ve genel istatistikler |
+| `mavi-matematik-settings` | `version`, ses, hareket efektleri |
+| `mavi-matematik-high-scores` | En yüksek 10 skor |
+
+Bozuk veya eski sürüm veri yok sayılır; oyun varsayılanlarla açılır.
 
 ## Geliştirme
 

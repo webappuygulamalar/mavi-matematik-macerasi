@@ -23,3 +23,6 @@
 - (Sprint 3A) Performans ölçümü headless Chromium'da (yazılım tabanlı boyama, 4x yavaşlatılmış işlemci) yapıldı; gerçek düşük güçlü telefonda ölçülmedi.
 - (Sprint 3B) Ana rota erişilebilirliği oyunun gerçek fiziğiyle adım adım test ediliyor; ancak tek bir çocuğun baştan sona kesintisiz oynadığı bir oturum otomatik olarak simüle edilmedi. Zorluk dengesi gerçek oyuncuyla denenmeli.
 - (Sprint 3B) Kanyon (Seviye 3) uzak silüetinde mesaların dik kenarları arasında yer yer 1–2 px'lik ince aralık görünebilir.
+- (Sprint 3C) Oyun bittiğinde (canlar tükenince) "Ana Menü" seçilirse bölüm başı kaydı korunur; "Devam Et" ile aynı bölüm yeniden oynanabilir. Bu durumda aynı maceradan skor tablosuna birden fazla kayıt girebilir.
+- (Sprint 3C) Önceki sürümü kurmuş cihazlarda eski sayfa kodu güncelleme bildirimini göstermez; yeni kod ilk açılışta ağdan gelir ve bildirim bir sonraki açılışta görünür (veya uygulama tamamen kapanınca yeni sürüm kendiliğinden devreye girer).
+- (Sprint 3C) Emoji simgeler (Nasıl Oynanır, kalkan) cihaza göre farklı görünebilir.

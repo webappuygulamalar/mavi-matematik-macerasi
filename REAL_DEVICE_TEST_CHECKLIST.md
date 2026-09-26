@@ -20,6 +20,8 @@ Bu liste **yalnızca gerçek cihazla** doldurulur. Bilgisayardaki emülasyon (Pl
 
 ## Test adımları (her cihazda aynı sıra)
 
+Adım 28–43 Sprint 3C (kayıt, duraklatma, ayarlar, kurulum ve güncelleme) içindir.
+
 | No | Adım | Beklenen |
 |----|------|----------|
 | 1 | HTTPS adresini tarayıcıda aç | Başlangıç ekranı gelir: "Mavi’nin Matematik Macerası", "Oyuna Başla", ses düğmesi |
@@ -49,6 +51,22 @@ Bu liste **yalnızca gerçek cihazla** doldurulur. Bilgisayardaki emülasyon (Pl
 | 25 | Uygulamayı bir kez açıp kapattıktan sonra **uçak modunu aç**, ana ekran ikonundan aç | Oyun internetsiz açılır, görseller görünür, oynanır |
 | 26 | Uçak modunda bir soru çöz | Sayı tuş takımı ve cevap kontrolü çalışır |
 | 27 | Genel görünüm | Taşan yazı, kesilen düğme veya okunamayacak kadar küçük metin yok |
+| 28 | Başlangıç ekranı ilk açılışta | "Yeni Macera", "Nasıl Oynanır", "Ayarlar" ve kurulum düğmesi görünür; kayıt yoksa "Devam Et" görünmez |
+| 29 | Seviye 2'ye geç, uygulamayı tamamen kapat ve tekrar aç | "Kayıtlı ilerleme: Seviye 2 — Sisli Vadi" ve "Devam Et" görünür |
+| 30 | "Devam Et"e dokun | Seviye 2'nin başından başlar: 3 can, kalkan pasif, skor bölüm başındaki haliyle |
+| 31 | Bir bölümün ortasında (coin toplayıp) uygulamayı kapat, tekrar açıp Devam Et | Yine bölümün başından başlar; toplanan coinler tekrar sayılmaz |
+| 32 | Kayıt varken "Yeni Macera" | Onay penceresi çıkar; "Vazgeç" kaydı korur; "Evet" Seviye 1'den başlatır, skor tablosu ve ayarlar kalır |
+| 33 | Oyunda sağ üstteki duraklat (⏸) düğmesine dokun | Oyun tamamen durur; menü: Devam Et, Bölümü Yeniden Başlat, Nasıl Oynanır, Ayarlar, Ana Menü |
+| 34 | Joystick'i sürüklerken duraklat, sonra Devam Et | Karakter kendiliğinden yürümez veya zıplamaz; joystick merkezdedir |
+| 35 | Oyun sırasında ana ekrana dön (uygulamayı arka plana al), sonra geri gel | Oyun duraklatılmış olarak bekler |
+| 36 | Duraklatma → Bölümü Yeniden Başlat | Kısa onay sorulur; "Evet" bölümü baştan başlatır |
+| 37 | Duraklatma → Ana Menü, sonra Devam Et | Aynı bölümün başından sürer |
+| 38 | Ayarlar → Hareket efektleri: Azaltılmış | Boss vuruşunda ekran sallanmaz, efektler sadeleşir; ayar uygulama yeniden açılınca hatırlanır |
+| 39 | Nasıl Oynanır | Tek ekranda okunaklı; taşan veya kesilen yazı yok |
+| 40 | Kurulu değilken başlangıç ekranı | Android Chrome'da "Uygulamayı Yükle" (veya "Kurulum Yardımı"); iPhone/iPad'de "Kurulum Yardımı" Safari adımını vurgular |
+| 41 | Ana ekrandan (kurulu) açıldığında | Yükleme ve kurulum yardımı düğmeleri görünmez |
+| 42 | Yeni bir sürüm yayınlandıktan sonra uygulamayı aç | "Yeni sürüm hazır" bildirimi; "Şimdi Güncelle" bir kez yeniler, "Sonra" kapatır; oyun ortasında kendiliğinden yenilenmez |
+| 43 | Menüler ve düğmeler | Hiçbir menü veya düğme ekrandan taşmaz; çentik/ana ekran çizgisi düğmeleri örtmez |
 
 ### Cihaza kurulum notları
 
@@ -99,6 +117,22 @@ Her cihaz grubu için ayrı doldur. Aynı gruptan birden fazla cihaz denenirse f
 | 25 | Yapılmadı | |
 | 26 | Yapılmadı | |
 | 27 | Yapılmadı | |
+| 28 | Yapılmadı | |
+| 29 | Yapılmadı | |
+| 30 | Yapılmadı | |
+| 31 | Yapılmadı | |
+| 32 | Yapılmadı | |
+| 33 | Yapılmadı | |
+| 34 | Yapılmadı | |
+| 35 | Yapılmadı | |
+| 36 | Yapılmadı | |
+| 37 | Yapılmadı | |
+| 38 | Yapılmadı | |
+| 39 | Yapılmadı | |
+| 40 | Yapılmadı | |
+| 41 | Yapılmadı | |
+| 42 | Yapılmadı | |
+| 43 | Yapılmadı | |
 
 ### 2) iPad / Safari
 
@@ -139,6 +173,22 @@ Her cihaz grubu için ayrı doldur. Aynı gruptan birden fazla cihaz denenirse f
 | 25 | Yapılmadı | |
 | 26 | Yapılmadı | |
 | 27 | Yapılmadı | |
+| 28 | Yapılmadı | |
+| 29 | Yapılmadı | |
+| 30 | Yapılmadı | |
+| 31 | Yapılmadı | |
+| 32 | Yapılmadı | |
+| 33 | Yapılmadı | |
+| 34 | Yapılmadı | |
+| 35 | Yapılmadı | |
+| 36 | Yapılmadı | |
+| 37 | Yapılmadı | |
+| 38 | Yapılmadı | |
+| 39 | Yapılmadı | |
+| 40 | Yapılmadı | |
+| 41 | Yapılmadı | |
+| 42 | Yapılmadı | |
+| 43 | Yapılmadı | |
 
 ### 3) Android telefon / Chrome
 
@@ -178,6 +228,22 @@ Her cihaz grubu için ayrı doldur. Aynı gruptan birden fazla cihaz denenirse f
 | 25 | Yapılmadı | |
 | 26 | Yapılmadı | |
 | 27 | Yapılmadı | |
+| 28 | Yapılmadı | |
+| 29 | Yapılmadı | |
+| 30 | Yapılmadı | |
+| 31 | Yapılmadı | |
+| 32 | Yapılmadı | |
+| 33 | Yapılmadı | |
+| 34 | Yapılmadı | |
+| 35 | Yapılmadı | |
+| 36 | Yapılmadı | |
+| 37 | Yapılmadı | |
+| 38 | Yapılmadı | |
+| 39 | Yapılmadı | |
+| 40 | Yapılmadı | |
+| 41 | Yapılmadı | |
+| 42 | Yapılmadı | |
+| 43 | Yapılmadı | |
 
 ### 4) Android tablet / Chrome
 
@@ -217,6 +283,22 @@ Her cihaz grubu için ayrı doldur. Aynı gruptan birden fazla cihaz denenirse f
 | 25 | Yapılmadı | |
 | 26 | Yapılmadı | |
 | 27 | Yapılmadı | |
+| 28 | Yapılmadı | |
+| 29 | Yapılmadı | |
+| 30 | Yapılmadı | |
+| 31 | Yapılmadı | |
+| 32 | Yapılmadı | |
+| 33 | Yapılmadı | |
+| 34 | Yapılmadı | |
+| 35 | Yapılmadı | |
+| 36 | Yapılmadı | |
+| 37 | Yapılmadı | |
+| 38 | Yapılmadı | |
+| 39 | Yapılmadı | |
+| 40 | Yapılmadı | |
+| 41 | Yapılmadı | |
+| 42 | Yapılmadı | |
+| 43 | Yapılmadı | |
 
 ---
 

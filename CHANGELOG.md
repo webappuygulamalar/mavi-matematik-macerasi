@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-26 — Sprint 3C: Devam Et, duraklatma, ayarlar ve PWA yayın cilası (1.2.0)
+
+- Başlangıç ekranı: Yeni Macera, Devam Et (kayıt varsa), Nasıl Oynanır, Ayarlar, Uygulamayı Yükle / Kurulum Yardımı.
+- Kampanya kaydı (`mavi-matematik-save`, version 1): yalnızca bölüm başında yazılır; can, kalkan, efekt ve açık soru kaydedilmez.
+  Macera tamamlanınca kapanır. Yeni Macera onay ister, yalnızca kaydı temizler.
+- Duraklatma: HUD düğmesi (48x48), Esc/P, arka plana geçişte otomatik. Menü: Devam Et, Bölümü Yeniden Başlat (onaylı),
+  Nasıl Oynanır, Ayarlar, Ana Menü. Duraklatmada fizik, düşman, süre, animasyon, kamera ve girdiler donar.
+- Ayarlar (`mavi-matematik-settings`): ses ve hareket efektleri; kullanıcı seçimi sistem ayarının önüne geçer.
+- Tek menü penceresi, paneller arası geçiş; soru/tanıtım/özet/final açıkken ikinci pencere açılmaz.
+- Pencere açıkken oyun alanı `inert`; pencerelerde odak tuzağı; soru kapanınca odak düzgün oyuna döner.
+- Oyun sonu ve final ekranına "Ana Menü" düğmesi.
+- PWA: kurulum yardımı paneli (Android/iOS), güncellemede "Yeni sürüm hazır" bildirimi ve tek seferlik yenileme;
+  yeni service worker kullanıcı onayına kadar bekler.
+- HUD simge düğmeleri tüm ekranlarda en az 48x48.
+
 ## 2026-09-26 — Sprint 3B: Benzersiz seviyeler ve matematik ilerlemesi
 
 - Seviye verisi `level-data.js` dosyasına taşındı (statik, çevrimdışı güvenli, build ve service worker'da).
