@@ -43,7 +43,7 @@ function fingerprint(dir) {
 test.describe("Yayın paketi (dist/)", () => {
   test("yalnızca çalışma dosyalarını içerir, büyük kaynak görsel yok", () => {
     const files = listFiles(DIST).map((f) => relative(DIST, f)).sort();
-    const allowed = /^(index\.html|styles\.css|game\.js|pwa\.js|manifest\.webmanifest|service-worker\.js|build-info\.json|assets\/(img|icons)\/[\w.-]+\.png)$/;
+    const allowed = /^(index\.html|styles\.css|level-data\.js|game\.js|pwa\.js|manifest\.webmanifest|service-worker\.js|build-info\.json|assets\/(img|icons)\/[\w.-]+\.png)$/;
     for (const f of files) expect(f, "izin verilmeyen dosya").toMatch(allowed);
     for (const f of listFiles(DIST)) expect(statSync(f).size, f).toBeLessThan(2 * 1024 * 1024);
     // Kök dizindeki orijinal 2048px görseller pakete girmez
@@ -132,6 +132,15 @@ test.describe("Yayın paketi (dist/)", () => {
     await expect(page.locator("#questionFeedback")).toHaveText("Doğru!");
     await expect(page.locator("#questionDialog")).toBeHidden();
     expect(await page.evaluate(() => window.__MAVI_GAME__.state.score)).toBe(50);
+
+    // Çevrimdışıyken seviye verisi önbellekten gelir: Seviye 3 kanyon geometrisiyle açılır
+    await page.goto("./?level=3&autostart=1");
+    await expect.poll(() => page.evaluate(() => window.__MAVI_GAME__ && window.__MAVI_GAME__.state.level)).toBe(3);
+    const lv = await page.evaluate(() => {
+      const g = window.__MAVI_GAME__;
+      return { levels: g.levelData.levels.length, name: g.levelData.levels[2].name, p1: [g.platforms[1].x, g.platforms[1].y] };
+    });
+    expect(lv).toEqual({ levels: 4, name: "Gün Batımı Kanyonu", p1: [830, 600] });
     await context.setOffline(false);
   });
 });

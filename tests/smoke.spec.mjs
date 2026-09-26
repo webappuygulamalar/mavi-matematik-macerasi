@@ -24,6 +24,10 @@ async function openGame(page, query = "") {
 async function startGame(page) {
   await page.locator("#startButton").click();
   await expect(page.locator("#startDialog")).toBeHidden();
+  // Seviye tanıtımı: kullanıcı gibi dokunarak geç
+  await expect(page.locator("#levelIntro")).toBeVisible();
+  await page.locator("#levelIntro").click();
+  await expect(page.locator("#levelIntro")).toBeHidden();
   await expect.poll(() => game(page, () => window.__MAVI_GAME__.player.grounded)).toBe(true);
 }
 

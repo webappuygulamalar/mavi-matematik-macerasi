@@ -23,14 +23,29 @@ async function startAt(page, query = "") {
   await expect.poll(() => game(page, () => window.__MAVI_GAME__ && window.__MAVI_GAME__.player.grounded)).toBe(true);
 }
 
-// Üstü açık bir zemin noktasına taşır. 2890–3380 arası, sağında ~500 px boyunca yüzen platform
-// veya kutu olmayan en geniş zemin; yavaş ortamda koşarken bile zıplama tavana çarpmaz.
+// Üstü açık bir zemin noktasına taşır: seviye verisinden, sağında ~530 px boyunca aynı
+// platformun sürdüğü ve 440 px yukarısına kadar hiçbir platform/kutu olmayan ilk nokta bulunur
+// (koşarken zıplama tavana çarpmasın).
 async function moveToOpenGround(page) {
-  await game(page, () => {
+  const spot = await game(page, () => {
     const g = window.__MAVI_GAME__;
-    g.player.x = 2890;
-    g.player.vx = 0;
+    const solids = [...g.platforms, ...g.boxes];
+    for (const p of g.platforms) {
+      for (let x = p.x + 30; x + 530 + g.player.w <= p.x + p.w; x += 20) {
+        const blocked = solids.some((s) => s !== p && s.x < x + 530 + g.player.w && s.x + s.w > x && s.y < p.y && s.y + s.h > p.y - 440);
+        if (!blocked) return { x, y: p.y };
+      }
+    }
+    return null;
   });
+  expect(spot, "seviyede üstü açık zemin bulunmalı").not.toBeNull();
+  await game(page, (s) => {
+    const g = window.__MAVI_GAME__;
+    g.player.x = s.x;
+    g.player.y = s.y - g.player.h;
+    g.player.vx = 0;
+    g.player.vy = 0;
+  }, spot);
   await expect.poll(() => anim(page)).toBe("idle");
 }
 

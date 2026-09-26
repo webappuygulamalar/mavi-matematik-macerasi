@@ -7,7 +7,7 @@ const DIST_BASE = "/mavi-matematik-macerasi/";
 
 const devProject = (name, use) => ({
   name,
-  testMatch: /(smoke|visual)\.spec\.mjs/,
+  testMatch: /(smoke|visual|levels)\.spec\.mjs/,
   use: { baseURL: `http://127.0.0.1:${DEV_PORT}/`, ...use }
 });
 
