@@ -20,7 +20,7 @@ Bu liste **yalnızca gerçek cihazla** doldurulur. Bilgisayardaki emülasyon (Pl
 
 ## Test adımları (her cihazda aynı sıra)
 
-Adım 28–43 Sprint 3C (kayıt, duraklatma, ayarlar, kurulum ve güncelleme), adım 44–48 Sprint 3C.1 (tam ekran) içindir.
+Adım 28–43 Sprint 3C (kayıt, duraklatma, ayarlar, kurulum ve güncelleme), adım 44–47 Sprint 3C.1 (tam ekran), 48–50 Sprint 3C.2 (başlangıç noktası) içindir.
 
 | No | Adım | Beklenen |
 |----|------|----------|
@@ -71,7 +71,9 @@ Adım 28–43 Sprint 3C (kayıt, duraklatma, ayarlar, kurulum ve güncelleme), a
 | 45 | Karakterlere ve coinlere bak | Yatay yönde esnemiş/şişmanlamış görünmez |
 | 46 | Joystick ve Zıpla konumu | Gerçek ekran kenarlarına yakın; çentik/kamera deliği ve ana ekran çizgisinin üstüne binmez |
 | 47 | HUD, ses ve duraklat düğmeleri | Çentik bölgesine girmez, rahat dokunulur |
-| 48 | Seviye başında Mavi'yi bul | Joystick'in arkasında kalıyorsa ve bu rahatsız ediyorsa not et (bilinen durum) |
+| 48 | Her seviyenin başında Mavi'ye bak (çentikli telefonda da) | Mavi tamamen görünür; joystick'in arkasında değil, arada boşluk var |
+| 49 | Başlangıçta hiç dokunmadan birkaç saniye bekle | Puan 0 kalır; coin toplanmaz, soru açılmaz |
+| 50 | Çukura düş (ör. Seviye 4 başı), Bölümü Yeniden Başlat, Devam Et | Her üçünde de Mavi aynı başlangıç noktasına döner |
 
 ### Cihaza kurulum notları
 
@@ -143,6 +145,8 @@ Her cihaz grubu için ayrı doldur. Aynı gruptan birden fazla cihaz denenirse f
 | 46 | Yapılmadı | |
 | 47 | Yapılmadı | |
 | 48 | Yapılmadı | |
+| 49 | Yapılmadı | |
+| 50 | Yapılmadı | |
 
 ### 2) iPad / Safari
 
@@ -204,6 +208,8 @@ Her cihaz grubu için ayrı doldur. Aynı gruptan birden fazla cihaz denenirse f
 | 46 | Yapılmadı | |
 | 47 | Yapılmadı | |
 | 48 | Yapılmadı | |
+| 49 | Yapılmadı | |
+| 50 | Yapılmadı | |
 
 ### 3) Android telefon / Chrome
 
@@ -264,6 +270,8 @@ Her cihaz grubu için ayrı doldur. Aynı gruptan birden fazla cihaz denenirse f
 | 46 | Yapılmadı | |
 | 47 | Yapılmadı | |
 | 48 | Yapılmadı | |
+| 49 | Yapılmadı | |
+| 50 | Yapılmadı | |
 
 ### 4) Android tablet / Chrome
 
@@ -324,6 +332,8 @@ Her cihaz grubu için ayrı doldur. Aynı gruptan birden fazla cihaz denenirse f
 | 46 | Yapılmadı | |
 | 47 | Yapılmadı | |
 | 48 | Yapılmadı | |
+| 49 | Yapılmadı | |
+| 50 | Yapılmadı | |
 
 ---
 

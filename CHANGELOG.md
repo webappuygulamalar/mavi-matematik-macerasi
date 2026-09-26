@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-26 — Sprint 3C.2: Başlangıçta Mavi joystick'in arkasında kalmasın (1.2.2)
+
+- Ortak başlangıç noktası `LEVEL_DATA.start.x` 90 → 350 (tek doğruluk kaynağı `level-data.js`;
+  `game.js` içindeki kopyalar kaldırıldı). Kamera başlangıçta yine x=0, dünya dışı gösterilmez.
+- Ölçülen sprite–joystick boşluğu: 844x390 → 73 px, 915x412 → 78 px, çentikli 852x393 → 21 px,
+  2556x1179 → 429 px (önce: −67, −71, −121, +3 px; negatif = örtüşme).
+- İlk coin sıraları: Seviye 1 x=300 → 460, Seviye 2 x=250 → 460 (başlangıçtaki oyuncunun sağ kenarından
+  60+ px ileride; hareket etmeden coin toplanamaz). Seviye 3–4 değişmedi.
+- Seviye doğrulayıcıya kural: başlangıçta coin (60 px pay), kutu veya düşmanla çakışma yok.
+- Yeni başlangıç, son güvenli nokta, çukur sonrası dönüş, Bölümü Yeniden Başlat ve Devam Et'te kullanılıyor.
+- Test: Bölümü Yeniden Başlat testi puanı, Seviye 2'nin eski ilk coin sırasına istemeden bağlıydı; coin
+  artık oyuncunun konumuna açıkça konuyor (beklenti aynı).
+
 ## 2026-09-26 — Sprint 3C.1: Geniş telefonlarda gerçek tam ekran (1.2.1)
 
 - Sorun: oyun sabit 1280x720 (16:9) mantıksal görünümle çiziliyor ve CSS bu kutuyu ekrana sığdırıyordu.
