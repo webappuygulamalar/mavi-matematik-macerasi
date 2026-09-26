@@ -2006,8 +2006,56 @@ dialog {
     padding: 6px 10px;
   }
 
-  .game-over-dialog .result-menu {
-    margin-top: 6px;
+  /* Final/oyun sonu: düğmeler yan yana, farklı yazı tiplerinde de kaydırmasız sığsın */
+  .game-over-dialog .result-main {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 8px;
+    align-content: start;
+  }
+
+  .game-over-dialog .result-main > * {
+    grid-column: 1 / -1;
+  }
+
+  .game-over-dialog .result-main > #restartButton,
+  .game-over-dialog .result-main > .result-menu {
+    grid-column: auto;
+    min-height: 48px;
+    margin-top: 0;
+    padding: 0 10px;
+    font-size: 16px;
+    white-space: nowrap;
+  }
+
+  .game-over-dialog h2 {
+    margin: 2px 0;
+    font-size: 21px;
+  }
+
+  .game-over-dialog strong {
+    margin-bottom: 4px;
+    font-size: 36px;
+  }
+
+  .result-stats {
+    margin: 0 0 6px;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .game-over-dialog label {
+    margin-bottom: 4px;
+  }
+
+  .game-over-dialog .name-input {
+    height: 44px;
+    margin-bottom: 2px;
+  }
+
+  .game-over-dialog .saved-score-status {
+    min-height: 14px;
+    margin: 0 0 6px;
   }
 }
 
