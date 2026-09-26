@@ -21,7 +21,9 @@
   const data = {
     schemaVersion: 1,
     world: { width: 7500, height: 720 },
-    start: { x: 90, footY: 635 },
+    // Başlangıç: tek doğruluk kaynağı. Geniş telefonlarda (çentikli dahil) Mavi sol alttaki joystick'in
+    // arkasında kalmasın diye x=350 (ölçüm: en dar durumda çentikli 852x393'te ~21 CSS px boşluk).
+    start: { x: 350, footY: 635 },
     arena: { platform: [6420, 625, 1080, 95, "ground"], start: 6420, end: 7480, floorY: 625 },
     arenaCoins: [["line", 6600, 625, 5, 48]],
 
@@ -89,7 +91,7 @@
           [5750, 381]
         ],
         coins: [
-          ["line", 300, 635, 5, 50],
+          ["line", 460, 635, 5, 50], // ilk coin, başlangıçtaki oyuncunun 60+ px önünde
           ["arc", 870, 575, 1030, 565, 80, 5],
           ["line", 1100, 625, 4, 48],
           ["arc", 1765, 565, 1945, 580, 80, 4],
@@ -180,7 +182,7 @@
           [6150, 381]
         ],
         coins: [
-          ["line", 250, 635, 4, 50],
+          ["line", 460, 635, 4, 50], // ilk coin, başlangıçtaki oyuncunun 60+ px önünde
           ["arc", 665, 575, 865, 540, 80, 5],
           ["line", 900, 600, 4, 48],
           ["line", 1030, 440, 4, 48],

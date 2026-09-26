@@ -28,6 +28,7 @@ export const RULES = {
   routeMargin: 0.75, // ana rota: hesaplanan menzilin en fazla %75'i kullanılır
   maxHopDistance: 600, // kör zıplama yok: iniş noktası ekranda görünür
   startSafeZone: 700, // başlangıç bölgesinde düşman yok
+  startCoinLead: 60, // ilk coin başlangıçtaki oyuncunun sağ kenarından en az bu kadar ileride
   landingSafe: 90, // zıplayarak varılan platformun giriş kenarında düşman yok
   minPatrol: 102
 };
@@ -123,6 +124,9 @@ export function validateLevels(data) {
     // Başlangıç
     const startPlatform = platforms.find((p) => data.start.x >= p.x && data.start.x + PHYSICS.playerW <= p.x + p.w && p.y === data.start.footY);
     if (!startPlatform) err(id, "başlangıç noktası güvenli bir zemin üzerinde değil");
+    // Başlangıçta oyuncu hiçbir şeyle çakışmaz; hareket etmeden coin toplanamaz
+    const startBody = { x: data.start.x, y: data.start.footY - PHYSICS.playerH, w: PHYSICS.playerW, h: PHYSICS.playerH };
+    const startReach = { x: data.start.x - RULES.startCoinLead, y: startBody.y, w: PHYSICS.playerW + RULES.startCoinLead * 2, h: startBody.h };
 
     // Soru kutuları
     const boxes = level.boxes.map(([x, y], i) => ({ i, x, y, w: PHYSICS.boxSize, h: PHYSICS.boxSize }));
@@ -156,6 +160,13 @@ export function validateLevels(data) {
       if (!reachable) err(id, `coin ${i} (${cx}, ${cy}) erişilemez`);
       if (c.x < 0 || c.x + c.w > W || c.y < 0) err(id, `coin ${i} dünya dışında`);
     });
+
+    expandCoins(level.coins).forEach((c, i) => {
+      if (overlaps(c, startReach)) err(id, `coin ${i} başlangıç noktasına ${RULES.startCoinLead}px'den yakın`);
+    });
+    for (const [x, y] of level.boxes) {
+      if (overlaps({ x, y, w: PHYSICS.boxSize, h: PHYSICS.boxSize }, startBody)) err(id, "soru kutusu başlangıç noktasıyla çakışıyor");
+    }
 
     // Rota
     const route = level.route;

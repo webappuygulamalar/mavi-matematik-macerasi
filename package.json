@@ -1,6 +1,6 @@
 {
   "name": "mavi-matematik-macerasi",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "private": true,
   "description": "Mavi'nin Matematik Macerası — Türkçe eğitici platform oyunu (PWA)",
   "scripts": {

@@ -209,7 +209,7 @@
     summaryOpen: false,
     manualStep: false,
     geometryLevel: 0,
-    lastSafe: { x: 90, footY: 635 },
+    lastSafe: { x: LEVEL_DATA.start.x, footY: LEVEL_DATA.start.footY },
     levelStats: { coins: 0, questions: 0, correct: 0, scoreStart: 0 },
     totalStats: { coins: 0, questions: 0, correct: 0 },
     pendingAnswerFx: null,
@@ -225,9 +225,9 @@
 
   const player = {
     kind: "player",
-    x: 90,
-    y: 420,
-    prevY: 420,
+    x: LEVEL_DATA.start.x,
+    y: LEVEL_DATA.start.footY - 104,
+    prevY: LEVEL_DATA.start.footY - 104,
     w: 46,
     h: 104,
     vx: 0,
