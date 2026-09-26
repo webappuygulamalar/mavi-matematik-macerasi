@@ -45,9 +45,14 @@ self.addEventListener("install", (event) => {
       const cache = await caches.open(CACHE_NAME);
       await cache.addAll(CORE_ASSETS.map((url) => new Request(url, { cache: "reload" })));
       await Promise.allSettled(IMAGE_ASSETS.map((url) => cache.add(new Request(url, { cache: "reload" }))));
-      await self.skipWaiting();
+      // Güncellemede yeni sürüm bekler; kullanıcı "Şimdi Güncelle" deyince devreye girer
+      // (ilk kurulumda bekleyecek eski sürüm olmadığı için hemen etkinleşir).
     })()
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
