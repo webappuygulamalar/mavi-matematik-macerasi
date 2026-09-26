@@ -48,6 +48,30 @@ async function openQuestion(page, index = 0) {
   return game(page, () => window.__MAVI_GAME__.state.currentQuestion.answer);
 }
 
+// Joystick'i gerçek dokunma olaylarıyla (CDP) sürükler. Konumlar yarıçap oranı olarak verilir:
+// fx = 1 tam sağ, -1 tam sol, 0 merkez. "others" aynı anda basılı diğer parmaklardır.
+async function joystickDriver(page) {
+  const g = await game(page, () => window.__MAVI_GAME__.test.joystickGeometry());
+  const cdp = await page.context().newCDPSession(page);
+  const finger = (fx, fy = 0) => ({ x: Math.round(g.cx + g.radius * fx), y: Math.round(g.cy + g.radius * fy), id: 1 });
+  const send = (type, touchPoints) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints });
+  return {
+    geometry: g,
+    cdp,
+    press: (fx = 0, fy = 0, others = []) => send("touchStart", [finger(fx, fy), ...others]),
+    drag: (fx, fy = 0, others = []) => send("touchMove", [finger(fx, fy), ...others]),
+    release: () => send("touchEnd", []),
+    cancel: () => send("touchCancel", [])
+  };
+}
+
+const vx = (page) => game(page, () => window.__MAVI_GAME__.player.vx);
+const axis = (page) => game(page, () => window.__MAVI_GAME__.touchInput.axis);
+
+function center(b) {
+  return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+}
+
 function overlaps(a, b) {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
@@ -109,7 +133,7 @@ test.describe("Başlangıç ve yerleşim", () => {
     if (isTouchProject(testInfo)) {
       await expect(page.locator("#touchControls")).toBeVisible();
       await expect(page.locator(".keyboard-help")).toBeHidden();
-      for (const sel of ['[data-action="left"]', '[data-action="right"]', '[data-action="jump"]']) {
+      for (const sel of [".joystick-base", '[data-action="jump"]']) {
         const b = await page.locator(sel).boundingBox();
         expect(b.width).toBeGreaterThanOrEqual(56);
         expect(b.height).toBeGreaterThanOrEqual(56);
@@ -141,56 +165,253 @@ test.describe("Kontroller", () => {
     await page.keyboard.up("Space");
   });
 
-  test("dokunmatik: sağ + zıpla aynı anda (çoklu dokunma) ve bırakınca durma", async ({ page, consoleErrors }, testInfo) => {
+  test("masaüstünde joystick gizli, klavye yardımı görünür; eski sol/sağ düğmeleri yok", async ({ page, consoleErrors }, testInfo) => {
+    await openGame(page);
+    await startGame(page);
+    await expect(page.locator('[data-action="left"], [data-action="right"], #dpad, .dpad')).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Sola git|Sağa git/ })).toHaveCount(0);
+    if (isTouchProject(testInfo)) {
+      await expect(page.locator(".joystick-base")).toBeVisible();
+      await expect(page.getByRole("group", { name: "Hareket çubuğu" })).toBeVisible();
+      await expect(page.locator("#joystick")).toHaveAttribute("aria-describedby", "joystickHint");
+      await expect(page.locator("#joystickHint")).toHaveText("Hareket çubuğu: sola veya sağa sürükle");
+    } else {
+      await expect(page.locator(".joystick-base")).toBeHidden();
+      await expect(page.locator(".keyboard-help")).toBeVisible();
+    }
+  });
+});
+
+test.describe("Analog joystick", () => {
+  test.beforeEach(async ({ page }, testInfo) => {
     test.skip(!isTouchProject(testInfo), "Dokunmatik cihaz projelerinde çalışır");
     await openGame(page);
     await startGame(page);
-    const right = await page.locator('[data-action="right"]').boundingBox();
-    const jump = await page.locator('[data-action="jump"]').boundingBox();
-    const center = (b) => ({ x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2) });
-    const cdp = await page.context().newCDPSession(page);
-    const x0 = await game(page, () => window.__MAVI_GAME__.player.x);
-
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ ...center(right), id: 1 }] });
-    await page.waitForTimeout(150);
-    await cdp.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: [{ ...center(right), id: 1 }, { ...center(jump), id: 2 }]
-    });
-    await expect.poll(() => game(page, () => ({ ...window.__MAVI_GAME__.touchInput }))).toEqual({ left: false, right: true, jump: true });
-    await expect.poll(() => game(page, () => window.__MAVI_GAME__.player.vy)).toBeLessThan(0);
-    await page.waitForTimeout(250);
-    expect(await game(page, () => window.__MAVI_GAME__.player.x)).toBeGreaterThan(x0 + 40);
-    await expect(page.locator('[data-action="right"]')).toHaveClass(/is-pressed/);
-
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-    await expect.poll(() => game(page, () => ({ ...window.__MAVI_GAME__.touchInput }))).toEqual({ left: false, right: false, jump: false });
-    await page.waitForTimeout(900);
-    const xa = await game(page, () => window.__MAVI_GAME__.player.x);
-    await page.waitForTimeout(250);
-    expect(await game(page, () => window.__MAVI_GAME__.player.x)).toBe(xa);
   });
 
-  test("dokunmatik: parmak sol-sağ arasında kayar; iptal ve pencere odağı kaybı girdiyi bırakır", async ({ page, consoleErrors }, testInfo) => {
-    test.skip(!isTouchProject(testInfo), "Dokunmatik cihaz projelerinde çalışır");
-    await openGame(page);
-    await startGame(page);
-    const left = await page.locator('[data-action="left"]').boundingBox();
-    const right = await page.locator('[data-action="right"]').boundingBox();
-    const cdp = await page.context().newCDPSession(page);
-    const at = (b) => ({ x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2), id: 7 });
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [at(left)] });
-    await expect.poll(() => game(page, () => window.__MAVI_GAME__.touchInput.left)).toBe(true);
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [at(right)] });
-    await expect.poll(() => game(page, () => ({ ...window.__MAVI_GAME__.touchInput }))).toEqual({ left: false, right: true, jump: false });
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
-    await expect.poll(() => game(page, () => window.__MAVI_GAME__.touchInput.right)).toBe(false);
+  test("yarım sağa sürükleme yavaş, tam sağa sürükleme en yüksek hız", async ({ page, consoleErrors }) => {
+    const js = await joystickDriver(page);
+    const max = await game(page, () => window.__MAVI_GAME__.test.moveSpeed);
+    await js.press(0, 0);
+    await js.drag(0.5, 0);
+    await expect.poll(() => vx(page)).toBeGreaterThan(0);
+    const half = await vx(page);
+    expect(half).toBeGreaterThan(max * 0.2);
+    expect(half).toBeLessThan(max * 0.6);
+    const x0 = await game(page, () => window.__MAVI_GAME__.player.x);
+    await page.waitForTimeout(200);
+    expect(await game(page, () => window.__MAVI_GAME__.player.x)).toBeGreaterThan(x0 + 10);
+    // Parmak dairenin dışına taşsa da hız MOVE_SPEED'de sınırlanır
+    await js.drag(1.8, 0);
+    await expect.poll(() => vx(page)).toBeCloseTo(max, 3);
+    expect(await axis(page)).toBe(1);
+    await js.release();
+  });
 
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [at(right)] });
-    await expect.poll(() => game(page, () => window.__MAVI_GAME__.touchInput.right)).toBe(true);
+  test("sola sürüklenince karakter sola gider", async ({ page, consoleErrors }) => {
+    const js = await joystickDriver(page);
+    await game(page, () => {
+      window.__MAVI_GAME__.player.x = 600;
+    });
+    await js.press(0, 0);
+    await js.drag(-1, 0);
+    await expect.poll(() => vx(page)).toBeLessThan(0);
+    await page.waitForTimeout(200);
+    expect(await game(page, () => window.__MAVI_GAME__.player.x)).toBeLessThan(600 - 20);
+    expect(await game(page, () => window.__MAVI_GAME__.player.facing)).toBe(-1);
+    await js.release();
+  });
+
+  test("ölü bölge içinde hareket yok; dikey sürükleme zıplatmaz", async ({ page, consoleErrors }) => {
+    const js = await joystickDriver(page);
+    const dz = await game(page, () => window.__MAVI_GAME__.test.joystickDeadZone);
+    expect(dz).toBeGreaterThanOrEqual(0.15);
+    expect(dz).toBeLessThanOrEqual(0.2);
+    const x0 = await game(page, () => window.__MAVI_GAME__.player.x);
+    await js.press(0, 0);
+    await js.drag(0.1, 0);
+    await page.waitForTimeout(250);
+    expect(await axis(page)).toBe(0);
+    expect(await vx(page)).toBe(0);
+    expect(await game(page, () => window.__MAVI_GAME__.player.x)).toBe(x0);
+    // Topuz yine de parmağı izler (görsel geri bildirim)
+    await expect(page.locator("#joystick")).toHaveClass(/is-active/);
+    // Tam yukarı sürükleme: topuz oynar ama karakter zıplamaz ve yürümez
+    await js.drag(0, -1);
+    await page.waitForTimeout(250);
+    expect(await game(page, () => window.__MAVI_GAME__.player.vy)).toBe(0);
+    expect(await vx(page)).toBe(0);
+    await js.release();
+  });
+
+  test("bırakınca karakter durur ve topuz merkeze döner", async ({ page, consoleErrors }) => {
+    const js = await joystickDriver(page);
+    await js.press(0, 0);
+    await js.drag(1, 0.5);
+    await expect.poll(() => vx(page)).toBeGreaterThan(0);
+    const knobMoved = center(await page.locator(".joystick-knob").boundingBox());
+    expect(knobMoved.x).toBeGreaterThan(js.geometry.cx + js.geometry.radius * 0.5);
+    await js.release();
+    await expect.poll(() => axis(page)).toBe(0);
+    await expect.poll(() => vx(page)).toBe(0);
+    await expect(page.locator("#joystick")).not.toHaveClass(/is-active/);
+    await expect
+      .poll(async () => {
+        const c = center(await page.locator(".joystick-knob").boundingBox());
+        return Math.hypot(c.x - js.geometry.cx, c.y - js.geometry.cy);
+      })
+      .toBeLessThan(1);
+  });
+
+  test("pointercancel ve lostpointercapture hareketi sıfırlar", async ({ page, consoleErrors }) => {
+    const js = await joystickDriver(page);
+    await js.press(0, 0);
+    await js.drag(1, 0);
+    await expect.poll(() => axis(page)).toBe(1);
+    await js.cancel();
+    await expect.poll(() => axis(page)).toBe(0);
+    await expect.poll(() => vx(page)).toBe(0);
+
+    await page.evaluate(() => {
+      document.getElementById("joystick").addEventListener("pointerdown", (e) => {
+        window.__joystickPointerId = e.pointerId;
+      });
+    });
+    await js.press(0, 0);
+    await js.drag(-1, 0);
+    await expect.poll(() => axis(page)).toBe(-1);
+    // Yakalamanın kaybedilmesi (ör. sistem hareketi) gerçek lostpointercapture olayını tetikler
+    const hadCapture = await page.evaluate(() => {
+      const el = document.getElementById("joystick");
+      const id = window.__joystickPointerId;
+      const captured = el.hasPointerCapture(id);
+      el.releasePointerCapture(id);
+      return captured;
+    });
+    expect(hadCapture, "joystick pointer capture kullanmalı").toBe(true);
+    // Tarayıcı lostpointercapture'ı bir sonraki pointer olayından önce gönderir (Pointer Events standardı).
+    // Joystick sıfırlanmalı ve yakalaması kaybolmuş parmağın hareketini yok saymalı.
+    // (Aynı koordinata "hareket" pointermove üretmez; parmak gerçekten kaydırılır.)
+    await js.drag(-0.8, 0.1);
+    await expect.poll(() => axis(page)).toBe(0);
+    await expect.poll(() => vx(page)).toBe(0);
+    await js.release();
+    // Sonrasında joystick tekrar kullanılabilir
+    await js.press(0, 0);
+    await js.drag(1, 0);
+    await expect.poll(() => axis(page)).toBe(1);
+    await js.release();
+  });
+
+  test("pencere odağı kaybı ve sekme gizlenmesi joystick'i takılı bırakmaz", async ({ page, consoleErrors }) => {
+    const js = await joystickDriver(page);
+    await js.press(0, 0);
+    await js.drag(1, 0);
+    await expect.poll(() => axis(page)).toBe(1);
     await page.evaluate(() => window.dispatchEvent(new Event("blur")));
-    expect(await game(page, () => window.__MAVI_GAME__.touchInput.right)).toBe(false);
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    expect(await axis(page)).toBe(0);
+    await expect.poll(() => vx(page)).toBe(0);
+    await js.release();
+
+    await js.press(0, 0);
+    await js.drag(1, 0);
+    await expect.poll(() => axis(page)).toBe(1);
+    await page.evaluate(() => {
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(await axis(page)).toBe(0);
+    await js.release();
+  });
+
+  test("joystick + zıplama iki parmakla aynı anda çalışır", async ({ page, consoleErrors }) => {
+    const js = await joystickDriver(page);
+    const jump = center(await page.locator('[data-action="jump"]').boundingBox());
+    const jumpFinger = { x: Math.round(jump.x), y: Math.round(jump.y), id: 2 };
+    const max = await game(page, () => window.__MAVI_GAME__.test.moveSpeed);
+    await js.press(0, 0);
+    await js.drag(1, 0);
+    await expect.poll(() => vx(page)).toBeCloseTo(max, 3);
+    await js.cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x: Math.round(js.geometry.cx + js.geometry.radius), y: Math.round(js.geometry.cy), id: 1 }, jumpFinger]
+    });
+    await expect.poll(() => game(page, () => ({ ...window.__MAVI_GAME__.touchInput }))).toEqual({ axis: 1, jump: true });
+    await expect.poll(() => game(page, () => window.__MAVI_GAME__.player.vy)).toBeLessThan(0);
+    expect(await vx(page)).toBeCloseTo(max, 3);
+    await expect(page.locator('[data-action="jump"]')).toHaveClass(/is-pressed/);
+    // Parmağı sola kaydırırken zıplama basılı kalır
+    await js.drag(-1, 0, [jumpFinger]);
+    await expect.poll(() => game(page, () => ({ ...window.__MAVI_GAME__.touchInput }))).toEqual({ axis: -1, jump: true });
+    await js.release();
+    await expect.poll(() => game(page, () => ({ ...window.__MAVI_GAME__.touchInput }))).toEqual({ axis: 0, jump: false });
+  });
+
+  test("soru açılınca joystick sıfırlanır; soru kapanınca yeniden kullanılır", async ({ page, consoleErrors }, testInfo) => {
+    const js = await joystickDriver(page);
+    await js.press(0, 0);
+    await js.drag(1, 0);
+    await expect.poll(() => axis(page)).toBe(1);
+    const answer = await openQuestion(page);
+    expect(await axis(page)).toBe(0);
+    await expect(page.locator("#joystick")).not.toHaveClass(/is-active/);
+    const x0 = await game(page, () => window.__MAVI_GAME__.player.x);
+    await js.drag(1, 0);
+    await page.waitForTimeout(250);
+    expect(await axis(page)).toBe(0);
+    expect(await game(page, () => window.__MAVI_GAME__.player.x)).toBe(x0);
+    await js.release();
+
+    await typeWithKeypad(page, answer, testInfo);
+    await pressKey(page, "#answerButton", testInfo);
+    await expect(page.locator("#questionDialog")).toBeHidden();
+    await expect(page.locator("#touchControls")).not.toHaveClass(/is-disabled/);
+    await js.press(0, 0);
+    await js.drag(1, 0);
+    await expect.poll(() => axis(page)).toBe(1);
+    await page.waitForTimeout(250);
+    expect(await game(page, () => window.__MAVI_GAME__.player.x)).toBeGreaterThan(x0 + 20);
+    await js.release();
+  });
+
+  test("oyun sonunda joystick sıfırlanır ve devre dışı kalır", async ({ page, consoleErrors }) => {
+    const js = await joystickDriver(page);
+    await js.press(0, 0);
+    await js.drag(1, 0);
+    await expect.poll(() => axis(page)).toBe(1);
+    await game(page, () => {
+      const g = window.__MAVI_GAME__;
+      g.state.lives = 1;
+      g.player.invuln = 0;
+      g.test.hurtPlayer(false);
+    });
+    await expect(page.locator("#gameOverDialog")).toBeVisible();
+    expect(await axis(page)).toBe(0);
+    await expect(page.locator("#touchControls")).toHaveClass(/is-disabled/);
+    await js.release();
+  });
+
+  test("joystick, zıplama, HUD ve soru penceresi çakışmaz", async ({ page, consoleErrors }) => {
+    const vp = page.viewportSize();
+    const base = await page.locator(".joystick-base").boundingBox();
+    const jump = await page.locator('[data-action="jump"]').boundingBox();
+    const hud = await page.locator(".hud").boundingBox();
+    // Ekran içinde ve güvenli alan payıyla
+    for (const b of [base, jump]) {
+      expect(b.x).toBeGreaterThanOrEqual(8);
+      expect(b.y).toBeGreaterThanOrEqual(0);
+      expect(b.x + b.width).toBeLessThanOrEqual(vp.width - 8);
+      expect(b.y + b.height).toBeLessThanOrEqual(vp.height - 8);
+    }
+    expect(base.width).toBeGreaterThanOrEqual(92);
+    expect(base.width).toBeLessThanOrEqual(128);
+    expect(overlaps(base, jump)).toBe(false);
+    expect(overlaps(base, hud)).toBe(false);
+    expect(overlaps(jump, hud)).toBe(false);
+    await openQuestion(page);
+    const dlg = await page.locator("#questionDialog").boundingBox();
+    expect(overlaps(dlg, base), "soru penceresi joystick'in üstüne binmemeli").toBe(false);
+    expect(overlaps(dlg, jump), "soru penceresi zıplama düğmesinin üstüne binmemeli").toBe(false);
   });
 });
 
@@ -382,15 +603,12 @@ test.describe("Ekran sayı tuş takımı", () => {
     await pressKey(page, "#answerButton", testInfo);
     await expect(page.locator("#questionDialog")).toBeHidden();
     await expect(page.locator("#touchControls")).not.toHaveClass(/is-disabled/);
-    const right = await page.locator('[data-action="right"]').boundingBox();
-    const cdp = await page.context().newCDPSession(page);
+    const js = await joystickDriver(page);
     const x0 = await game(page, () => window.__MAVI_GAME__.player.x);
-    await cdp.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: [{ x: Math.round(right.x + right.width / 2), y: Math.round(right.y + right.height / 2), id: 3 }]
-    });
+    await js.press(0, 0);
+    await js.drag(1, 0);
     await page.waitForTimeout(300);
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await js.release();
     expect(await game(page, () => window.__MAVI_GAME__.player.x)).toBeGreaterThan(x0 + 40);
   });
 });
