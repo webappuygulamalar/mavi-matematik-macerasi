@@ -670,7 +670,7 @@
       sounds.correct();
       closeQuestionSoon();
     } else {
-      setQuestionFeedback(`Yanlış cevap. Doğrusu ${state.currentQuestion.answer}. Puan yok.`, "wrong");
+      setQuestionFeedback(`Bu sefer olmadı. Doğrusu ${state.currentQuestion.answer}. Sıradakini yaparsın!`, "wrong");
       showAnswerFx("wrong");
       completeBox(activeBox);
       state.currentQuestion = null;
@@ -1037,7 +1037,7 @@
     updateQuestionTimerUi();
     if (state.questionTimer > 0) return;
     const activeBox = state.activeBox;
-    setQuestionFeedback("Süre bitti. Puan yok.", "wrong");
+    setQuestionFeedback(`Süre doldu. Doğrusu ${state.currentQuestion.answer}. Sıradakini yaparsın!`, "wrong");
     recordAnswer(false);
     showAnswerFx("wrong");
     setAnswerLocked(true);
@@ -1530,7 +1530,7 @@
   function loadHighScores() {
     try {
       const saved = JSON.parse(localStorage.getItem(HIGH_SCORE_KEY) || "[]");
-      return Array.isArray(saved) ? saved.filter(isScoreEntry).slice(0, 10) : [];
+      return Array.isArray(saved) ? saved.filter(isScoreEntry).sort((a, b) => b.score - a.score).slice(0, 10) : [];
     } catch (_) {
       return [];
     }
@@ -1683,6 +1683,8 @@
     summaryAccuracy.textContent = accuracyText(st.correct, st.questions);
     state.summaryOpen = true;
     state.paused = true;
+    // Bölüm tamamlandı: özet açıkken sayfa kapanırsa Devam Et sonraki bölümden, bu skorla sürer
+    writeSave({ level: state.level + 1, score: state.score, totalStats: state.totalStats });
     releaseAllInput();
     summaryDialog.showModal();
     syncControlsEnabled();
@@ -3507,6 +3509,7 @@
   function createSoundBoard() {
     let context = null;
     let unlocked = false;
+    let activeVoices = 0;
     function getContext() {
       const AudioCtor = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtor) return null;
@@ -3553,9 +3556,16 @@
         gain.connect(audio.destination);
         osc.start(t0);
         osc.stop(t0 + note.dur + 0.02);
+        // Biten sesin düğümleri çözülür; uzun oyunda (özellikle Safari'de) ses düğümü birikmez
+        activeVoices += 1;
+        osc.onended = () => {
+          activeVoices -= 1;
+          osc.disconnect();
+          gain.disconnect();
+        };
       }
     }
-    const board = { unlock, isUnlocked: () => unlocked, hasContext: () => context !== null };
+    const board = { unlock, isUnlocked: () => unlocked, hasContext: () => context !== null, activeVoices: () => activeVoices };
     for (const name of Object.keys(SOUND_DEFS)) board[name] = () => play(name);
     return board;
   }
@@ -3573,6 +3583,11 @@
     const rawDt = (now - state.lastTime) / 1000;
     const dt = Math.max(0, Math.min(1 / 30, rawDt));
     state.lastTime = now;
+    // Sayfa arka plandayken simülasyon ilerlemez (gizli sekmede kare üreten tarayıcılarda da süre akmaz)
+    if (document.hidden) {
+      requestAnimationFrame(loop);
+      return;
+    }
     if (rawDt > 0 && rawDt < 1) state.fps += (1 / rawDt - state.fps) * 0.05;
     // Testlerde elle adım modu: oyun güncellemesi test tarafından yürütülür, çizim sürer.
     if (!state.manualStep) update(dt);
@@ -3929,7 +3944,7 @@
     return t && ["coins", "questions", "correct"].every((k) => Number.isInteger(t[k]) && t[k] >= 0) && t.correct <= t.questions;
   }
 
-  // Kayıt yalnızca bölüm başlangıcında yazılır: seviye, o anki toplam skor ve genel istatistikler.
+  // Kayıt yalnızca bölüm başlangıcında ve bölüm özeti açılınca yazılır: seviye, o anki toplam skor ve genel istatistikler.
   // Can, kalkan, efektler, joystick ve açık soru kaydedilmez.
   function readSave() {
     const raw = readStorage(SAVE_KEY);
@@ -3951,14 +3966,14 @@
     }
   }
 
-  function writeSave() {
+  function writeSave(progress = { level: state.level, score: state.levelStart.score, totalStats: state.levelStart.totals }) {
     writeStorage(
       SAVE_KEY,
       JSON.stringify({
         version: SAVE_VERSION,
-        level: state.level,
-        score: state.levelStart.score,
-        totalStats: { ...state.levelStart.totals },
+        level: progress.level,
+        score: progress.score,
+        totalStats: { ...progress.totalStats },
         savedAt: new Date().toISOString()
       })
     );
@@ -4156,6 +4171,7 @@
       soundDefs: SOUND_DEFS,
       audioUnlocked: () => sounds.isUnlocked(),
       audioContextCreated: () => sounds.hasContext(),
+      activeVoices: () => sounds.activeVoices(),
       footY,
       topAt,
       coinGap: COIN_GAP,

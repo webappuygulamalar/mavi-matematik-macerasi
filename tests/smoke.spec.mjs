@@ -488,7 +488,7 @@ test.describe("Matematik soruları", () => {
       await page.locator("#answerInput").fill(String(answer + 1));
       await page.locator("#answerInput").press("Enter");
     }
-    await expect(page.locator("#questionFeedback")).toContainText("Yanlış cevap");
+    await expect(page.locator("#questionFeedback")).toContainText("Bu sefer olmadı");
     await expect(page.locator("#questionDialog")).toBeHidden();
     expect(await game(page, () => window.__MAVI_GAME__.state.score)).toBe(0);
     expect(await game(page, () => window.__MAVI_GAME__.boxes[1].state)).toBe("used");
@@ -539,7 +539,7 @@ test.describe("Ekran sayı tuş takımı", () => {
     const answer = await openQuestion(page, 2);
     await typeWithKeypad(page, answer + 1, testInfo);
     await pressKey(page, "#answerButton", testInfo);
-    await expect(page.locator("#questionFeedback")).toContainText("Yanlış cevap");
+    await expect(page.locator("#questionFeedback")).toContainText("Bu sefer olmadı");
     await expect(page.locator("#questionDialog")).toBeHidden();
     expect(await game(page, () => window.__MAVI_GAME__.state.score)).toBe(0);
     expect(await game(page, () => window.__MAVI_GAME__.player.shield)).toBe(0);

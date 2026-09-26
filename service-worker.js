@@ -32,6 +32,7 @@ const IMAGE_ASSETS = [
   "./assets/img/enemy_boss_2_clean.png",
   "./assets/img/enemy_boss_3_clean.png",
   "./assets/img/enemy_boss_4_clean.png",
+  "./assets/img/rockets.png",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",
   "./assets/icons/icon-maskable-512.png",
