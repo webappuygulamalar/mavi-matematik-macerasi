@@ -4,6 +4,8 @@
 
 **Oyna:** https://webappuygulamalar.github.io/mavi-matematik-macerasi/
 
+**Sürüm:** 1.3.0 — değişiklikler için [CHANGELOG.md](CHANGELOG.md), bilinen küçük sorunlar için [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
 ## Özellikler
 
 - 4 farklı seviye, her birinin sonunda boss savaşı:

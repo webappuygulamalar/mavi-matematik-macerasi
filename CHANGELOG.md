@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-26 — v1.3.0 (final)
+
+1.3.0-rc.1 gerçek telefon ve tablette kabul testinden geçti ve 1.3.0 olarak yayınlandı.
+RC'ye göre oynanış, fizik, bölümler, matematik profilleri, görseller veya arayüz davranışı değişmedi.
+Yalnızca sürüm numarası, service worker önbellek kimliği ve belgeler güncellendi.
+
+1.3.0'ın 1.2.x'e göre kapsamı (ayrıntılar aşağıdaki 1.3.0-rc.1 kaydında):
+- Özet açıkken kapatmada ilerleme korunur.
+- Ses düğümleri birikmez.
+- Arka planda süre akmaz.
+- Çocuk dostu geri bildirim metinleri.
+- 48 px dokunma hedefleri.
+- Tam macera, kesinti ve erişilebilirlik testleri.
+- Node 24 CI.
+
 ## 2026-09-26 — Sürüm adayı 1.3.0-rc.1: kalite, kararlılık ve yayın denetimi
 
 Yeni oyun özelliği yok; yalnızca hata düzeltme, sağlamlaştırma, test ve belge.

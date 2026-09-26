@@ -1,5 +1,9 @@
 # Gerçek Cihaz Test Listesi — Mavi’nin Matematik Macerası
 
+> **Sürüm adayı kabulü:** 1.3.0-rc.1, gerçek telefon ve tablette kabul testinden geçti (proje sahibinin bildirimi, 26 Eylül 2026).
+> Engelleyici sorun bildirilmedi. Bu sürüm 1.3.0 olarak yayınlandı. Aşağıdaki cihaz bazlı formlar ayrıntılı olarak doldurulmadı;
+> sonraki sürümlerde aynı liste kullanılabilir.
+
 Bu liste **yalnızca gerçek cihazla** doldurulur. Bilgisayardaki emülasyon (Playwright, tarayıcı geliştirici araçları) sonuçları buraya "Geçti" olarak yazılmaz.
 
 ## Nasıl doldurulur?
@@ -391,6 +395,8 @@ Her cihaz grubu için ayrı doldur. Aynı gruptan birden fazla cihaz denenirse f
 
 | Cihaz grubu | Durum | Engelleyici sorun var mı? |
 |-------------|-------|---------------------------|
+| Telefon — 1.3.0-rc.1 kabulü | Geçti (proje sahibi bildirdi) | Hayır |
+| Tablet — 1.3.0-rc.1 kabulü | Geçti (proje sahibi bildirdi) | Hayır |
 | iPhone / Safari | Yapılmadı | |
 | iPad / Safari | Yapılmadı | |
 | Android telefon / Chrome | Yapılmadı | |

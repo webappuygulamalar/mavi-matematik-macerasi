@@ -3,6 +3,14 @@
 Her sürüm adayı (`x.y.z-rc.N`) ve son sürüm (`x.y.z`) için bu sırayla ilerle.
 Bir adım kalırsa sonraki adıma geçme.
 
+## v1.3.0 kaydı
+
+- [x] 1.3.0-rc.1 yayınlandı, CI ve canlı doğrulama geçti.
+- [x] Telefon ve tablette gerçek cihaz kabulü tamamlandı (26 Eylül 2026).
+- [x] Sürüm 1.3.0; RC'den bu yana oynanış veya arayüz değişikliği yok (yalnızca sürüm, önbellek kimliği ve belgeler).
+- [x] Yerel doğrulama, tam macera 6 tur (masaüstü 3, telefon 3) ve RC → 1.3.0 PWA güncellemesi geçti.
+- `v1.3.0` etiketi ve GitHub Release, CI ve canlı doğrulama geçtikten sonra bu sürümün final commit'ine oluşturulur.
+
 ## 1. Kod ve sürüm
 
 - [ ] Yalnızca planlanan değişiklikler var (sürüm adayında yeni özellik yok).
@@ -55,9 +63,9 @@ npx playwright test tests/release.spec.mjs -g "Tam macera" --repeat-each=3   # k
 
 ## 5. Gerçek cihaz kabulü (son sürümden önce zorunlu)
 
-- [ ] `REAL_DEVICE_TEST_CHECKLIST.md` dört cihaz grubunda dolduruldu:
-  - iPhone, iPad, Android telefon, Android tablet.
-- [ ] Engelleyici sorun yok. Kalan sorunlar `KNOWN_ISSUES.md` dosyasında.
+- [x] Telefon ve tablette gerçek cihaz kabulü tamamlandı (v1.3.0: 1.3.0-rc.1 kabul edildi, 26 Eylül 2026).
+  - Sonraki sürümlerde `REAL_DEVICE_TEST_CHECKLIST.md` iPhone, iPad, Android telefon ve Android tablette doldurulur.
+- [x] Engelleyici sorun yok. Kalan sorunlar `KNOWN_ISSUES.md` dosyasında.
 
 ## 6. Son sürüm
 
