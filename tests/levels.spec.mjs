@@ -115,7 +115,7 @@ test.describe("Seviyeler oyunda", () => {
       expect(info.enemies).toBe(def.enemies.length);
       expect(info.arena).toEqual([6420, 625, 1080, 95]);
       expect(info.startFoot).toBe(635);
-      expect(info.startX).toBe(90);
+      expect(info.startX).toBe(DATA.start.x);
       expect(info.arenaEnemies).toBe(0);
       expect(info.arenaBoxes).toBe(0);
       expect(info.nearbyEnemy).toBe(false);

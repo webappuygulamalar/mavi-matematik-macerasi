@@ -114,7 +114,8 @@ test.describe("Kampanya kaydı ve Devam Et", () => {
       const g = window.__MAVI_GAME__;
       return { level: g.state.level, score: g.state.score, lives: g.state.lives, shield: g.player.shield, stats: { ...g.state.levelStats }, total: { ...g.state.totalStats }, x: g.player.x, p1: [g.platforms[1].x, g.platforms[1].y] };
     });
-    expect(st).toMatchObject({ level: 3, score: 480, lives: 3, shield: 0, x: 90, p1: [830, 600] });
+    const startX = await game(page, () => window.__MAVI_GAME__.levelData.start.x);
+    expect(st).toMatchObject({ level: 3, score: 480, lives: 3, shield: 0, x: startX, p1: [830, 600] });
     expect(st.stats).toMatchObject({ coins: 0, questions: 0, correct: 0, scoreStart: 480 });
     expect(st.total).toEqual({ coins: 30, questions: 6, correct: 5 });
   });
@@ -324,11 +325,12 @@ test.describe("Duraklatma", () => {
     await page.reload();
     await page.locator("#continueButton").click();
     await skipIntro(page);
+    // Başlangıçtan uzaklaş ve bir coin topla (coin oyuncunun yeni konumuna konur)
     await game(page, () => {
       const g = window.__MAVI_GAME__;
+      g.player.x = 400;
       g.coins[0].x = g.player.x;
       g.coins[0].y = g.player.y + 20;
-      g.player.x = 400;
       g.state.lives = 2;
     });
     await expect.poll(() => game(page, () => window.__MAVI_GAME__.state.score)).toBe(310);
@@ -348,7 +350,8 @@ test.describe("Duraklatma", () => {
       const g = window.__MAVI_GAME__;
       return { score: g.state.score, lives: g.state.lives, x: g.player.x, coin0: g.coins[0].collected, stats: { ...g.state.levelStats }, total: { ...g.state.totalStats } };
     });
-    expect(st).toMatchObject({ score: 300, lives: 3, x: 90, coin0: false, total: { coins: 9, questions: 2, correct: 2 } });
+    const startX = await game(page, () => window.__MAVI_GAME__.levelData.start.x);
+    expect(st).toMatchObject({ score: 300, lives: 3, x: startX, coin0: false, total: { coins: 9, questions: 2, correct: 2 } });
     expect(st.stats).toMatchObject({ coins: 0, questions: 0, correct: 0 });
     // Ana Menü: kayıt korunur, Devam Et görünür
     await skipIntro(page);
