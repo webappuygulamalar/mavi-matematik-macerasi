@@ -11,7 +11,8 @@
     "test": "playwright test",
     "test:dist": "playwright test --project dist-pwa-telefon",
     "test:headed": "playwright test --headed",
-    "release": "npm test && npm run build"
+    "release": "npm test && npm run build",
+    "validate:levels": "node tools/validate-levels.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0"
