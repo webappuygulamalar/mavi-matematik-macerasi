@@ -673,13 +673,18 @@ test.describe("Oyun sonu, skor ve boss", () => {
 test.describe("Ayarlar ve sağlamlık", () => {
   test("ses aç/kapat çalışır ve hatırlanır", async ({ page, consoleErrors }) => {
     await openGame(page);
-    const toggle = page.locator("#soundToggleStart");
+    // Ses ayarı başlangıç ekranındaki Ayarlar panelinde
+    await page.locator("#settingsButton").click();
+    const toggle = page.locator("#soundToggleSettings");
     await expect(toggle).toHaveAttribute("aria-pressed", "true");
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-pressed", "false");
     await expect(toggle).toContainText("Ses: Kapalı");
     await page.reload();
-    await expect(page.locator("#soundToggleStart")).toHaveAttribute("aria-pressed", "false");
+    await page.locator("#settingsButton").click();
+    await expect(page.locator("#soundToggleSettings")).toHaveAttribute("aria-pressed", "false");
+    await page.locator('[data-panel="settings"] [data-panel-back]').click();
+    await expect(page.locator("#menuDialog")).toBeHidden();
     await startGame(page);
     await expect(page.locator("#soundToggleGame")).toHaveAttribute("aria-label", /Ses kapalı/);
   });

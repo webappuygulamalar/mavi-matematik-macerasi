@@ -3,7 +3,8 @@
 import { test as base, expect } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 
@@ -142,5 +143,82 @@ test.describe("Yayın paketi (dist/)", () => {
     });
     expect(lv).toEqual({ levels: 4, name: "Gün Batımı Kanyonu", p1: [830, 600] });
     await context.setOffline(false);
+  });
+
+  test("güncelleme: 'Yeni sürüm hazır' bildirimi, kendiliğinden yenilemez, 'Şimdi Güncelle' tek kez yeniler", async ({ browser }, testInfo) => {
+    test.slow();
+    // İki sürüm üret: A (kurulu) ve B (yeni). Sunucu bir sembolik bağ üzerinden hangisini sunacağını seçer.
+    const tmp = mkdtempSync(join(tmpdir(), "mavi-update-"));
+    const a = join(tmp, "a");
+    const b = join(tmp, "b");
+    const current = join(tmp, "current");
+    execFileSync(process.execPath, [join(ROOT, "tools/build.mjs"), "--out", a], { stdio: "pipe" });
+    cpSync(a, b, { recursive: true });
+    writeFileSync(join(b, "game.js"), `${readFileSync(join(b, "game.js"), "utf8")}\n// yeni sürüm\n`);
+    const sw = readFileSync(join(b, "service-worker.js"), "utf8").replace(/const CACHE_VERSION = "([^"]+)";/, 'const CACHE_VERSION = "$1-yeni";');
+    writeFileSync(join(b, "service-worker.js"), sw);
+    symlinkSync(a, current);
+    // Paralel/tekrarlı çalıştırmalarda port çakışmasın
+    const port = 4200 + testInfo.workerIndex * 10 + testInfo.repeatEachIndex;
+    const server = spawn(process.execPath, [join(ROOT, "tools/preview.mjs"), "--port", String(port), "--dir", current, "--base", BASE_PATH], { stdio: "ignore" });
+    const url = `http://127.0.0.1:${port}${BASE_PATH}`;
+    try {
+      await expect.poll(async () => (await fetch(url).catch(() => null))?.status ?? 0).toBe(200);
+      const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+      const page = await ctx.newPage();
+      const errors = [];
+      page.on("pageerror", (e) => errors.push(e.message));
+      let navigations = 0;
+      page.on("framenavigated", (f) => {
+        if (f === page.mainFrame()) navigations += 1;
+      });
+      const cacheNames = () => page.evaluate(async () => (await caches.keys()).filter((n) => n.startsWith("mavi-matematik-")));
+
+      // İlk kurulum: sayfa kendiliğinden yenilenmez
+      await page.goto(url);
+      await page.evaluate(async () => {
+        await navigator.serviceWorker.ready;
+      });
+      await page.reload();
+      await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+      await page.waitForTimeout(1200);
+      expect(navigations).toBe(2);
+      const oldCaches = await cacheNames();
+      expect(oldCaches.length).toBe(1);
+      const banner = page.locator("#startDialog [data-update-banner]");
+      await expect(banner).toBeHidden();
+
+      // Yeni sürüm yayınlandı
+      unlinkSync(current);
+      symlinkSync(b, current);
+      await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
+      await expect(banner).toBeVisible({ timeout: 15000 });
+      await expect(banner).toContainText("Yeni sürüm hazır");
+      await page.waitForTimeout(1000);
+      expect(navigations, "güncelleme kendiliğinden uygulanmamalı").toBe(2);
+
+      // Sonra: bildirim kapanır, yenileme yok; sayfa yeniden açılınca bekleyen sürüm yine bildirilir
+      await banner.locator("[data-update-later]").tap();
+      await expect(banner).toBeHidden();
+      await page.waitForTimeout(500);
+      expect(navigations).toBe(2);
+      await page.reload();
+      expect(navigations).toBe(3);
+      await expect(banner).toBeVisible({ timeout: 15000 });
+
+      // Şimdi Güncelle: tam olarak bir yenileme, döngü yok, eski önbellek silinir
+      await banner.locator("[data-update-now]").tap();
+      await expect.poll(() => navigations, { timeout: 15000 }).toBe(4);
+      await page.waitForTimeout(2500);
+      expect(navigations, "sonsuz yenileme olmamalı").toBe(4);
+      await expect.poll(cacheNames).toEqual([`${oldCaches[0]}-yeni`]);
+      await expect(page.locator("#startDialog [data-update-banner]")).toBeHidden();
+      expect(await page.evaluate(() => document.querySelector('script[src^="game.js"]') !== null)).toBe(true);
+      expect(errors).toEqual([]);
+      await ctx.close();
+    } finally {
+      server.kill();
+      rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });
