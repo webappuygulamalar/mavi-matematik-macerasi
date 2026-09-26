@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-09-26 — Sprint 3A: Akıcı animasyon ve 2.5D görsel yenileme
+
+- Mavi için animasyon durum makinesi: idle, walk, run, jump-start, jump-up, apex, fall, land, hurt, victory.
+- Sprite sheet'teki pozlar tek tek ölçüldü (PLAYER_FRAMES); kare hızı gerçek hıza bağlı, ayak noktası sabit.
+- tools/prepare-player-sheet.mjs: kutlama pozundaki gömülü dama deseni ve üç pozdaki gömülü gölge temizlendi.
+- Düşmanlar: adım ritmi, gövde salınımı, oyuncu yaklaşınca tepki, basılınca sıkışıp kaybolma.
+- 2.5D platformlar (önbellekte): açık üst yüzey, bevel, çim saçakları, dokulu ön yüz, yüzen platformlarda kayalık alt.
+- Parallax: gökyüzü/ışık, uzak bulutlar (0,07), uzak dağlar (0,18), orta tepeler (0,42), yakın çalılar (0,7).
+- Seviye atmosferleri: parlak gündüz, serin vadi (sis), gün batımı, mor akşam (ay ve yıldızlar).
+- Efektler: koşu/zıplama/iniş tozu, coin parıltısı, kutu vuruşu, doğru/yanlış geri bildirimi, kalkan enerji halkası,
+  boss vuruş parlaması + şok dalgası + en fazla 3 px sallama, iki katmanlı havai fişek.
+- roket.png'den saydam roket gövdeleri çıkarıldı (tools/prepare-rocket-sprites.mjs); alev ve iz prosedürel.
+- Kamera: FPS'ten bağımsız yumuşatma ve en fazla 70 px ileri bakış; sınırlar aynı.
+- prefers-reduced-motion: sallama, şok dalgası, ileri bakış ve nefes alma kapalı; parçacıklar seyrek.
+- Debug (F2 veya ?debug=1): animasyon, kare, FPS, parçacık sayısı, kamera.
+- Performans: ekran dışı nesneler çizilmez, arka planın örtülen bölgeleri boyanmaz, sprite önbellekleri.
+- 17 yeni görsel test (tests/visual.spec.mjs) ve görsel karşılaştırma aracı (tools/visual-snapshots.mjs).
+
 ## 2026-09-26 — Sprint 2.1: Analog joystick
 
 - Ayrı sol/sağ ok düğmeleri kaldırıldı; sol alta yuvarlak analog joystick eklendi.

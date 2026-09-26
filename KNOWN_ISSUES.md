@@ -18,3 +18,6 @@
 - (Sprint 2) Gerçek cihaz sonuçları REAL_DEVICE_TEST_CHECKLIST.md içinde henüz boş; bütün maddeler "Yapılmadı".
 - Oyun https://webappuygulamalar.github.io/mavi-matematik-macerasi/ adresinde yayında; canlı adres yalnızca masaüstü tarayıcı emülasyonuyla doğrulandı.
 - GitHub Actions, kullanılan action sürümleri için Node.js 20 kullanımdan kalkma uyarısı veriyor (şimdilik yalnızca uyarı).
+- (Sprint 3A) Sprite sheet'te 4 poz kullanılmıyor: 3. satırdaki önden duruş ve iki başparmak pozu ile 4. satırdaki başparmak ve çömelme pozunda pantolon ve bacak arası gömülü dama deseniyle bozulmuş. Bu yüzden iniş ve zıplama başlangıcı ayrı poz yerine mevcut kareler + hafif sıkışma ile gösteriliyor. Temiz bir çömelme/iniş pozu gelirse PLAYER_ANIMATIONS'a eklenebilir.
+- (Sprint 3A) Hasar için ayrı poz yok; havada zıplama pozu geriye eğilerek ve mevcut yanıp sönme ile kullanılıyor.
+- (Sprint 3A) Performans ölçümü headless Chromium'da (yazılım tabanlı boyama, 4x yavaşlatılmış işlemci) yapıldı; gerçek düşük güçlü telefonda ölçülmedi.
