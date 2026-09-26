@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-09-26 — Sprint 3C.1: Geniş telefonlarda gerçek tam ekran (1.2.1)
+
+- Sorun: oyun sabit 1280x720 (16:9) mantıksal görünümle çiziliyor ve CSS bu kutuyu ekrana sığdırıyordu.
+  844x390 gibi ~2,16:1 ekranlarda iki yanda 75 px (2556x1179'da 230 px) boş şerit kalıyor, sahne ayrıca
+  safe-area kadar içeriden başlıyordu.
+- Çözüm: uyarlanabilir görünüm. Mantıksal yükseklik 720 sabit; mantıksal genişlik
+  `720 × ekranGenişliği / ekranYüksekliği`, 1280–1680 aralığında. Canvas CSS oranı mantıksal oranla birebir
+  (X ve Y ölçeği eşit, esneme yok). Dünya, fizik ve seviye verisi değişmedi; oyuncu aynı ölçekte biraz daha
+  geniş alan görür (844x390'da 1558x720).
+- Sahne ekranın dört kenarına uzanır; HUD, ses/duraklat ve klavye yardımı safe-area kadar içeride.
+  Dar ekranlarda (tablet/masaüstü) üst/alt boşluk seviyenin gökyüzü/toprak rengiyle birleşir.
+- Kamera sınırları, parallax döşemeleri, gökyüzü, çukur bandı, boss can çubuğu, kutlama paneli ve havai
+  fişekler dinamik genişliğe göre çiziliyor.
+- Geniş görünümde piksel bütçesi (≈1,1 MP): arka bellek önceki 16:9 telefon maliyetinde tutulur.
+- Düzeltmeler: uzak silüet döşeme kenarında 2 px boşluk bırakıyordu; en sağ piksel sütunu yarı saydam kalabiliyordu.
+- Test değişikliği: "oyun alanı taşmadan ekrana sığar ve 16:9 oranını korur" testi yeni ürün kararıyla
+  çeliştiği için silinmedi; adı ve beklentisi "görüntü esnemeden ekranı dolduran uyarlanabilir görünüm"
+  olarak güncellendi (mantıksal genişlik formülü, eşit X/Y ölçeği, kenar boşluğu ≤1 px, tuval arka belleği).
+
 ## 2026-09-26 — Sprint 3C: Devam Et, duraklatma, ayarlar ve PWA yayın cilası (1.2.0)
 
 - Başlangıç ekranı: Yeni Macera, Devam Et (kayıt varsa), Nasıl Oynanır, Ayarlar, Uygulamayı Yükle / Kurulum Yardımı.

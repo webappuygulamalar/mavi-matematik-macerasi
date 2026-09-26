@@ -26,3 +26,6 @@
 - (Sprint 3C) Oyun bittiğinde (canlar tükenince) "Ana Menü" seçilirse bölüm başı kaydı korunur; "Devam Et" ile aynı bölüm yeniden oynanabilir. Bu durumda aynı maceradan skor tablosuna birden fazla kayıt girebilir.
 - (Sprint 3C) Önceki sürümü kurmuş cihazlarda eski sayfa kodu güncelleme bildirimini göstermez; yeni kod ilk açılışta ağdan gelir ve bildirim bir sonraki açılışta görünür (veya uygulama tamamen kapanınca yeni sürüm kendiliğinden devreye girer).
 - (Sprint 3C) Emoji simgeler (Nasıl Oynanır, kalkan) cihaza göre farklı görünebilir.
+- (Sprint 3C.1) Geniş telefonlarda görünüm ekran kenarına kadar uzandığı için seviye başında (x=90) Mavi sol alttaki joystick'in arkasında kalır; ~120 px ilerleyince görünür. Joystick tabanı yarı saydamdır. Kalıcı çözüm için başlangıç noktasını veya kamera kuralını değiştirmek ürün kararı gerektirir.
+- (Sprint 3C.1) 21:9'dan geniş ekranlarda (ör. ultra geniş monitör) görünüm 1680 mantıksal pikselde sınırlanır; kenarlar sahne rengiyle dolar.
+- (Sprint 3C.1) Geniş telefonlarda çizim keskinliği performans için ~%10 düşürüldü (3x ekranlarda ~1,8x).

@@ -18,7 +18,7 @@
 - **Nasıl Oynanır** ekranı ve kurulum yardımı
 - Matematik soru kutuları: doğru cevap +50 puan ve geçici kalkan
 - Ekran içi çocuk dostu sayı tuş takımı (telefon klavyesine gerek yok)
-- Telefon, tablet ve masaüstünde çalışır; yatay kullanım için tasarlandı
+- Telefon, tablet ve masaüstünde çalışır; yatay kullanım için tasarlandı. Geniş telefonlarda oyun ekranın tamamını doldurur (görüntü esnemez; oyuncu biraz daha geniş alan görür)
 - Cihaza kurulabilir (PWA) ve ilk açılıştan sonra internetsiz oynanır
 - Yerel skor tablosu (skorlar yalnızca bu cihazdaki tarayıcıda saklanır)
 - Sunucu, üyelik, reklam veya analitik yok
