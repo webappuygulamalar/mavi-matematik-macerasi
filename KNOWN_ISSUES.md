@@ -21,3 +21,5 @@
 - (Sprint 3A) Sprite sheet'te 4 poz kullanılmıyor: 3. satırdaki önden duruş ve iki başparmak pozu ile 4. satırdaki başparmak ve çömelme pozunda pantolon ve bacak arası gömülü dama deseniyle bozulmuş. Bu yüzden iniş ve zıplama başlangıcı ayrı poz yerine mevcut kareler + hafif sıkışma ile gösteriliyor. Temiz bir çömelme/iniş pozu gelirse PLAYER_ANIMATIONS'a eklenebilir.
 - (Sprint 3A) Hasar için ayrı poz yok; havada zıplama pozu geriye eğilerek ve mevcut yanıp sönme ile kullanılıyor.
 - (Sprint 3A) Performans ölçümü headless Chromium'da (yazılım tabanlı boyama, 4x yavaşlatılmış işlemci) yapıldı; gerçek düşük güçlü telefonda ölçülmedi.
+- (Sprint 3B) Ana rota erişilebilirliği oyunun gerçek fiziğiyle adım adım test ediliyor; ancak tek bir çocuğun baştan sona kesintisiz oynadığı bir oturum otomatik olarak simüle edilmedi. Zorluk dengesi gerçek oyuncuyla denenmeli.
+- (Sprint 3B) Kanyon (Seviye 3) uzak silüetinde mesaların dik kenarları arasında yer yer 1–2 px'lik ince aralık görünebilir.

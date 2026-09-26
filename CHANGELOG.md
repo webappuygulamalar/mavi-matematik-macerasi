@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-26 — Sprint 3B: Benzersiz seviyeler ve matematik ilerlemesi
+
+- Seviye verisi `level-data.js` dosyasına taşındı (statik, çevrimdışı güvenli, build ve service worker'da).
+- Dört benzersiz seviye: Matematik Bahçesi, Sisli Vadi, Gün Batımı Kanyonu, Ayışığı Zirvesi.
+- Seviyeye özgü uzak/orta/yakın silüetler, platform stilleri ve dekorlar; çukurlar için derinlik bandı.
+- Matematik soru motoru seviyenin `mathProfile` verisini kullanıyor; negatif sonuç ve art arda tekrar yok,
+  boss soruları da aynı profilden; testler için tohumlu (deterministik) üretim.
+- Seviye tanıtımı (≤2 sn, dokunarak/Enter ile geçilir), seviye istatistikleri ve seviye sonu özeti.
+- Son seviyede "Macera Tamamlandı": toplam skor ve genel doğruluk; top-10 skor kaydı korunuyor.
+- Güvenli yeniden doğma: çukura düşünce son güvenli zemine dönülür (can kaybı kuralı aynı).
+- Ayırt edilebilir kısa WebAudio sesleri (zıplama, iniş, coin, kutu, doğru, yanlış, kalkan, düşmana basma,
+  hasar, roket, boss hasarı, seviye tamamlama); ses yalnızca kullanıcı etkileşiminden sonra başlar.
+- Seviye doğrulayıcı (`npm run validate:levels`, build'e bağlı) ve gerçek fizikle rota/kutu testleri.
+- `?level=N` debug parametresi; `tools/level-tour.mjs` seviye turu aracı.
+
 ## 2026-09-26 — Sprint 3A: Akıcı animasyon ve 2.5D görsel yenileme
 
 - Mavi için animasyon durum makinesi: idle, walk, run, jump-start, jump-up, apex, fall, land, hurt, victory.

@@ -6,7 +6,12 @@
 
 ## Özellikler
 
-- 4 seviye, her seviyenin sonunda boss savaşı
+- 4 farklı seviye, her birinin sonunda boss savaşı:
+  1. **Matematik Bahçesi** — toplama ve çıkarma, sonuçlar 20'ye kadar
+  2. **Sisli Vadi** — 100'e kadar toplama/çıkarma, 2 ve 5 ile çarpma
+  3. **Gün Batımı Kanyonu** — 100'e kadar işlemler, çarpım tablosu (2–9)
+  4. **Ayışığı Zirvesi** — karışık işlemler, çarpma ağırlıklı
+- Seviye tanıtımı ve seviye sonu özeti (puan, coin, doğru/soru, doğruluk)
 - Matematik soru kutuları: doğru cevap +50 puan ve geçici kalkan
 - Ekran içi çocuk dostu sayı tuş takımı (telefon klavyesine gerek yok)
 - Telefon, tablet ve masaüstünde çalışır; yatay kullanım için tasarlandı
@@ -42,7 +47,17 @@ npm install                 # test araçlarını kurar
 npm run serve               # http://127.0.0.1:8081 adresinde geliştirme sürümü
 ```
 
-Debug adresleri: `?boss=1&level=1` doğrudan boss arenasını açar (`level` 1–4).
+Debug adresleri: `?level=3` doğrudan 3. seviyeyi açar; `?boss=1&level=1` boss arenasını açar (`level` 1–4); `?debug=1` debug panelini gösterir.
+
+### Seviye verisi
+
+Seviyeler `level-data.js` dosyasındadır (platformlar, coinler, soru kutuları, düşmanlar, tema, atmosfer, matematik profili ve ana rota). Oyun kodundan bağımsızdır.
+
+```bash
+npm run validate:levels     # şema, sınırlar, yerleşimler ve ana rota erişilebilirliği
+```
+
+Build de bu doğrulamayı çalıştırır; geçersiz seviye verisiyle yayın paketi üretilmez. Testler ayrıca her seviyenin ana rotasını oyunun gerçek fiziğiyle baştan boss arenasına kadar dener.
 
 ### Testler
 
