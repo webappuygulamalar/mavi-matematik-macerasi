@@ -27,20 +27,20 @@ Bu liste **yalnızca gerçek cihazla** doldurulur. Bilgisayardaki emülasyon (Pl
 | 3 | Cihazı **yatay** çevir | Uyarı kaybolur, oyun alanı ekrana taşmadan sığar |
 | 4 | Çentik / kamera deliği / ana ekran çizgisi kontrolü | Puan, kalp, kalkan, seviye, ses düğmesi ve dokunmatik tuşlar çentiğin veya kenarın altında kalmaz |
 | 5 | "Oyuna Başla"ya dokun | Oyun başlar; başlamadan önce karakter hareket etmemişti |
-| 6 | Sol ve sağ oka basılı tut | Karakter yürür, bırakınca durur; tuş takılı kalmaz |
+| 6 | Sol alttaki yuvarlak joystick'i sağa ve sola sürükle | Az sürükleyince yavaş, kenara kadar sürükleyince hızlı yürür; ok düğmesi görünmez |
 | 7 | "Zıpla"ya dokun | Karakter zıplar |
-| 8 | Bir parmakla sağa basılı tutarken diğer parmakla zıpla | Karakter koşarak zıplar (çoklu dokunma) |
-| 9 | Parmağı sol oktan sağ oka kaydır | Yön değişir |
-| 10 | Tuşlara uzun bas / hızlı çift dokun | Kopyala menüsü, büyüteç veya sayfa yakınlaştırması çıkmaz; sayfa kaymaz |
+| 8 | Bir parmakla joystick'i sağa sürüklerken diğer parmakla zıpla | Karakter koşarak zıplar (çoklu dokunma) |
+| 9 | Joystick'i bırak; ayrıca merkezde hafifçe oynat | Bırakınca topuz merkeze döner ve karakter hemen durur; merkezdeki küçük oynamada karakter kıpırdamaz |
+| 10 | Joystick'e ve Zıpla'ya uzun bas / hızlı çift dokun; joystick'i ekran dışına doğru sürükle | Kopyala menüsü, büyüteç veya yakınlaştırma çıkmaz; sayfa kaymaz; joystick takılı kalmaz |
 | 11 | İlk dokunuştan sonra altın topla | Ses duyulur (iOS'ta özellikle kontrol et) |
 | 12 | Ses düğmesiyle sesi kapat / aç | Ses kapanır / açılır; tercih uygulama yeniden açılınca hatırlanır |
 | 13 | Bir soru kutusuna çarp | Soru penceresi açılır, **telefonun kendi klavyesi açılmaz**, ekrandaki sayı tuşları görünür |
-| 14 | Soru açıkken yön tuşlarına bas | Karakter hareket etmez |
+| 14 | Joystick'i sürüklerken bir soru kutusuna çarp | Soru açılınca karakter durur, joystick sıfırlanır |
 | 15 | Sayı tuşlarıyla iki basamaklı cevap yaz, "Sil" ve "Temizle"yi dene | Rakamlar doğru yazılır, Sil son rakamı, Temizle tümünü siler |
 | 16 | Doğru cevap ver, "Cevabı Kontrol Et" | "Doğru!" yazar, +50 puan, kalkan açılır, pencere kapanır |
 | 17 | Başka bir kutuda yanlış cevap ver | "Yanlış cevap" yazar, puan eklenmez, pencere kapanır |
 | 18 | Bir soruyu 30 saniye cevapsız bırak | "Süre bitti" yazar, pencere kapanır |
-| 19 | Soru kapandıktan sonra yön tuşları | Karakter yine hareket eder |
+| 19 | Soru kapandıktan sonra joystick | Karakter yine hareket eder |
 | 20 | Tüm canları kaybet, oyuncu adı yaz, "Yeniden Başlat" | Skor tablosuna eklenir, oyun baştan başlar |
 | 21 | Boss testi: adresin sonuna `?boss=1&level=1` ekleyip aç | Boss arenası açılır; düşen kutudaki soruyu doğru cevaplayınca roketler boss'a gider, can çubuğu azalır |
 | 22 | **Ana ekrana kur** (aşağıdaki cihaz notlarına bak) | Ana ekranda Mavi ikonu görünür |

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-26 — Sprint 2.1: Analog joystick
+
+- Ayrı sol/sağ ok düğmeleri kaldırıldı; sol alta yuvarlak analog joystick eklendi.
+- Yatay eksen -1…+1, ölü bölge 0,18; hız sürükleme miktarıyla orantılı, yarıçapın %95'inde tam hız (MOVE_SPEED).
+- Dikey sürükleme yalnızca topuzu oynatır, zıplatmaz. Klavye yönü basılıysa öncelikli.
+- Joystick kendi pointerId'sini izler; zıplama ikinci parmakla bağımsız çalışır.
+- pointerup/cancel/lostpointercapture, blur, visibilitychange, yön değişimi, soru ve oyun sonu joystick'i sıfırlar.
+- Zıplama düğmesi joystick ile uyumlu cam görünümüne getirildi; yatay telefonda soru penceresi kontrollerin arasında kalacak kadar daraltıldı.
+- Joystick için 11 yeni test; gerçek cihaz listesi joystick adımlarıyla güncellendi.
+
 ## 2026-09-26 — Sprint 2: Beta yayın hazırlığı
 
 - Soru penceresine ekran içi sayı tuş takımı eklendi (0–9, Sil, Temizle, Cevabı Kontrol Et).
