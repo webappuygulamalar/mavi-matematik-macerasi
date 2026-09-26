@@ -64,13 +64,11 @@
       </div>
 
       <section class="touch-controls" id="touchControls" aria-label="Dokunmatik kontroller">
-        <div class="dpad" id="dpad" role="group" aria-label="Yön tuşları">
-          <button type="button" class="touch-button" data-action="left" aria-label="Sola git">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15.5 4.5 8 12l7.5 7.5"/></svg>
-          </button>
-          <button type="button" class="touch-button" data-action="right" aria-label="Sağa git">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.5 4.5 16 12l-7.5 7.5"/></svg>
-          </button>
+        <div class="joystick-zone" id="joystick" role="group" aria-label="Hareket çubuğu" aria-describedby="joystickHint">
+          <span id="joystickHint" class="sr-only">Hareket çubuğu: sola veya sağa sürükle</span>
+          <div class="joystick-base" aria-hidden="true">
+            <div class="joystick-knob"></div>
+          </div>
         </div>
         <button type="button" class="touch-button jump-button" data-action="jump" aria-label="Zıpla">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 15.5 12 8l7.5 7.5"/></svg>
@@ -92,7 +90,7 @@
           <h2 id="startTitle" class="start-title">Mavi’nin <span>Matematik Macerası</span></h2>
           <p id="startHelpText" class="start-help">
             <span class="help-keyboard">Hareket: <kbd>A</kbd> <kbd>D</kbd> veya oklar · Zıpla: <kbd>W</kbd> / <kbd>Boşluk</kbd></span>
-            <span class="help-touch">Sol alttaki oklarla yürü, sağ alttaki düğmeyle zıpla.</span>
+            <span class="help-touch">Sol alttaki çubuğu sürükleyerek yürü, sağ alttaki düğmeyle zıpla.</span>
             <span class="help-common">Soru kutularına dokun, doğru cevapla kalkan kazan!</span>
           </p>
           <p class="best-score" id="bestScore" hidden>En iyi skor: <strong id="bestScoreValue">0</strong></p>

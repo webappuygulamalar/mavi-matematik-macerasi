@@ -380,11 +380,82 @@ canvas {
   pointer-events: none;
 }
 
-.dpad {
-  display: flex;
-  gap: 10px;
+/* Yuvarlak analog joystick: taban sabit, topuz parmağı izler (--kx, --ky JS'den gelir). */
+.joystick-zone {
+  --js: clamp(92px, 26vmin, 128px);
+  --kx: 0px;
+  --ky: 0px;
+  /* Dokunma alanı tabandan biraz geniş: küçük parmaklar kenarı kaçırmasın. */
+  padding: 10px;
+  margin: -10px;
   pointer-events: auto;
   touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.joystick-base {
+  position: relative;
+  width: var(--js);
+  height: var(--js);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.1) 0 34%, transparent 35%),
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.08) 70%),
+    rgba(23, 42, 74, 0.22);
+  box-shadow: 0 8px 20px rgba(23, 42, 74, 0.2), inset 0 2px 6px rgba(255, 255, 255, 0.25);
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+@supports ((-webkit-backdrop-filter: blur(4px)) or (backdrop-filter: blur(4px))) {
+  .joystick-base {
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+}
+
+.joystick-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46%;
+  height: 46%;
+  margin: -23% 0 0 -23%;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe08a, var(--sun) 60%, #e89a12);
+  box-shadow: 0 6px 14px rgba(23, 42, 74, 0.35), inset 0 -3px 0 rgba(120, 70, 0, 0.25);
+  transform: translate(var(--kx), var(--ky));
+  /* Bırakınca merkeze yaylı dönüş */
+  transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 120ms ease;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.joystick-zone.is-active {
+  cursor: grabbing;
+}
+
+.joystick-zone.is-active .joystick-base {
+  border-color: #fff;
+  background-color: rgba(23, 42, 74, 0.3);
+}
+
+/* Sürüklerken topuz parmağı gecikmesiz izler */
+.joystick-zone.is-active .joystick-knob {
+  transition: none;
+  box-shadow: 0 3px 8px rgba(23, 42, 74, 0.35), 0 0 0 6px rgba(255, 209, 92, 0.35), inset 0 -3px 0 rgba(120, 70, 0, 0.25);
+}
+
+.joystick-zone.is-moving .joystick-knob {
+  background: radial-gradient(circle at 35% 30%, #fff1b8, var(--sun-light) 55%, var(--sun) 100%);
+}
+
+.touch-controls.is-disabled .joystick-zone {
+  pointer-events: none;
 }
 
 .touch-button {
@@ -427,9 +498,20 @@ canvas {
 }
 
 .jump-button {
-  width: calc(var(--tb) * 1.22);
-  height: calc(var(--tb) * 1.22);
-  background: rgba(231, 53, 79, 0.34);
+  width: clamp(76px, 21vmin, 104px);
+  height: clamp(76px, 21vmin, 104px);
+  border-color: rgba(255, 255, 255, 0.8);
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.08) 70%),
+    rgba(231, 53, 79, 0.4);
+  box-shadow: 0 8px 20px rgba(23, 42, 74, 0.2), inset 0 2px 6px rgba(255, 255, 255, 0.25);
+}
+
+.jump-button.is-pressed {
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.1) 70%),
+    rgba(231, 53, 79, 0.7);
+  box-shadow: 0 3px 8px rgba(23, 42, 74, 0.25), 0 0 0 6px rgba(255, 255, 255, 0.3);
 }
 
 .jump-button svg {
@@ -1291,8 +1373,9 @@ dialog {
     max-height: calc(var(--kb-vh, var(--vh)) - 16px - var(--safe-t));
   }
 
+  /* Yatay telefonda pencere joystick ile zıplama düğmesinin arasında kalır */
   .question-dialog {
-    width: min(640px, calc(100vw - 24px - var(--safe-l) - var(--safe-r)));
+    width: min(600px, calc(100vw - 24px - var(--safe-l) - var(--safe-r)));
   }
 
   .question-dialog form {
@@ -1399,5 +1482,9 @@ dialog {
 
   .rotate-phone {
     transform: rotate(-90deg);
+  }
+
+  .joystick-knob {
+    transition: none !important;
   }
 }

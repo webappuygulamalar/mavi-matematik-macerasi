@@ -34,7 +34,9 @@
   const bestScoreValue = document.getElementById("bestScoreValue");
   const rotateDialog = document.getElementById("rotateDialog");
   const touchControls = document.getElementById("touchControls");
-  const dpad = document.getElementById("dpad");
+  const joystick = document.getElementById("joystick");
+  const joystickBase = joystick.querySelector(".joystick-base");
+  const joystickKnob = joystick.querySelector(".joystick-knob");
   const jumpButton = touchControls.querySelector('[data-action="jump"]');
   const soundToggles = Array.from(document.querySelectorAll(".sound-toggle"));
 
@@ -44,6 +46,10 @@
   const FINISH = { x: 7360, w: 70 };
   const GRAVITY = 1900;
   const MOVE_SPEED = 325;
+  // Joystick merkezindeki ölü bölge: bu oranın altındaki sürükleme hareket üretmez.
+  const JOYSTICK_DEAD_ZONE = 0.18;
+  // Tam hıza yarıçapın bu oranında ulaşılır; parmağı tam kenara getirmek gerekmez.
+  const JOYSTICK_FULL_AT = 0.95;
   const JUMP_SPEED = 1100;
   const MAX_FALL = 1150;
   const COIN_GAP = 10;
@@ -146,8 +152,10 @@
     ]
   };
 
-  const touchInput = { left: false, right: false, jump: false };
-  const touchPointers = new Map();
+  // axis: joystick'in yatay ekseni (-1 sol … +1 sağ, ölü bölge uygulanmış). jump: zıplama düğmesi.
+  const touchInput = { axis: 0, jump: false };
+  const jumpPointers = new Set();
+  const stick = { pointerId: null, cx: 0, cy: 0, radius: 1, x: 0, y: 0 };
   const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
   const portraitQuery = window.matchMedia("(orientation: portrait) and (hover: none) and (pointer: coarse)");
   const sounds = createSoundBoard();
@@ -689,74 +697,132 @@
     return state.started && !state.paused && !state.orientationBlocked && !dialog.open && !gameOverDialog.open;
   }
 
-  function recomputeTouchInput() {
-    touchInput.left = false;
-    touchInput.right = false;
-    touchInput.jump = false;
-    for (const action of touchPointers.values()) {
-      if (action) touchInput[action] = true;
-    }
-    for (const button of touchControls.querySelectorAll(".touch-button")) {
-      button.classList.toggle("is-pressed", touchInput[button.dataset.action]);
-    }
-  }
-
-  // Yön tuşları tek bir alan olarak izlenir: parmak sol ve sağ arasında kaydırılabilir.
-  function dpadActionAt(clientX) {
-    const rect = dpad.getBoundingClientRect();
-    return clientX < rect.left + rect.width / 2 ? "left" : "right";
-  }
-
-  function bindTouchZone(element, actionForEvent) {
-    element.addEventListener("pointerdown", (event) => {
-      if (event.pointerType === "mouse" && event.button !== 0) return;
-      event.preventDefault();
-      unlockAudio();
-      if (!isGameInteractive()) return;
-      try {
-        element.setPointerCapture(event.pointerId);
-      } catch (_) {
-        // Bazı tarayıcılar yakalamayı reddedebilir; olaylar yine de akar.
-      }
-      touchPointers.set(event.pointerId, actionForEvent(event));
-      recomputeTouchInput();
-    });
-    element.addEventListener("pointermove", (event) => {
-      if (!touchPointers.has(event.pointerId)) return;
-      const next = actionForEvent(event);
-      if (touchPointers.get(event.pointerId) !== next) {
-        touchPointers.set(event.pointerId, next);
-        recomputeTouchInput();
-      }
-    });
-    const release = (event) => {
-      if (!touchPointers.delete(event.pointerId)) return;
-      recomputeTouchInput();
+  /* Yuvarlak analog joystick
+   * - Parmağın joystick merkezine göre konumu, hareket yarıçapıyla sınırlanır (daire dışına çıkmaz).
+   * - Yatay eksen -1…+1 aralığına normalize edilir, ölü bölge çıkarılıp yeniden ölçeklenir:
+   *   az sürükleme yavaş, kenara yakın (%95) sürükleme MOVE_SPEED.
+   * - Dikey sürükleme yalnızca topuzu oynatır; zıplama sadece zıplama düğmesinden gelir.
+   * - Joystick kendi pointerId'sini izler; ikinci parmakla zıplama bağımsız çalışır. */
+  function joystickGeometry() {
+    const base = joystickBase.getBoundingClientRect();
+    const knob = joystickKnob.getBoundingClientRect();
+    return {
+      cx: base.left + base.width / 2,
+      cy: base.top + base.height / 2,
+      // Topuz kenardan hafifçe taşabilir; böylece küçük ekranda bile yeterli sürükleme mesafesi kalır.
+      radius: Math.max(1, base.width / 2 - knob.width * 0.2)
     };
-    element.addEventListener("pointerup", release);
-    element.addEventListener("pointercancel", release);
-    element.addEventListener("lostpointercapture", release);
-    element.addEventListener("contextmenu", (event) => event.preventDefault());
   }
 
-  bindTouchZone(dpad, (event) => dpadActionAt(event.clientX));
-  bindTouchZone(jumpButton, () => "jump");
+  function axisFromOffset(dx, dy, radius) {
+    const distance = Math.hypot(dx, dy);
+    const scale = distance > radius ? radius / distance : 1;
+    const x = dx * scale;
+    const y = dy * scale;
+    const nx = x / radius;
+    const magnitude = Math.abs(nx);
+    const axis =
+      magnitude <= JOYSTICK_DEAD_ZONE
+        ? 0
+        : Math.sign(nx) * Math.min(1, (magnitude - JOYSTICK_DEAD_ZONE) / (JOYSTICK_FULL_AT - JOYSTICK_DEAD_ZONE));
+    return { x, y, axis };
+  }
+
+  function renderJoystick() {
+    joystick.style.setProperty("--kx", `${stick.x.toFixed(1)}px`);
+    joystick.style.setProperty("--ky", `${stick.y.toFixed(1)}px`);
+    joystick.classList.toggle("is-active", stick.pointerId !== null);
+    joystick.classList.toggle("is-moving", touchInput.axis !== 0);
+  }
+
+  function moveJoystick(event) {
+    const result = axisFromOffset(event.clientX - stick.cx, event.clientY - stick.cy, stick.radius);
+    stick.x = result.x;
+    stick.y = result.y;
+    touchInput.axis = result.axis;
+    renderJoystick();
+  }
+
+  function resetJoystick() {
+    if (stick.pointerId !== null) {
+      try {
+        if (joystick.hasPointerCapture(stick.pointerId)) joystick.releasePointerCapture(stick.pointerId);
+      } catch (_) {
+        // Yakalama zaten bırakılmış olabilir.
+      }
+    }
+    stick.pointerId = null;
+    stick.x = 0;
+    stick.y = 0;
+    touchInput.axis = 0;
+    renderJoystick();
+  }
+
+  joystick.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    unlockAudio();
+    if (!isGameInteractive() || stick.pointerId !== null) return;
+    const geometry = joystickGeometry();
+    stick.pointerId = event.pointerId;
+    stick.cx = geometry.cx;
+    stick.cy = geometry.cy;
+    stick.radius = geometry.radius;
+    try {
+      joystick.setPointerCapture(event.pointerId);
+    } catch (_) {
+      // Bazı tarayıcılar yakalamayı reddedebilir; olaylar yine de akar.
+    }
+    moveJoystick(event);
+  });
+  joystick.addEventListener("pointermove", (event) => {
+    if (event.pointerId !== stick.pointerId) return;
+    event.preventDefault();
+    moveJoystick(event);
+  });
+  for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+    joystick.addEventListener(type, (event) => {
+      if (event.pointerId === stick.pointerId) resetJoystick();
+    });
+  }
+  joystick.addEventListener("contextmenu", (event) => event.preventDefault());
+
+  function renderJumpButton() {
+    touchInput.jump = jumpPointers.size > 0;
+    jumpButton.classList.toggle("is-pressed", touchInput.jump);
+  }
+
+  jumpButton.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    unlockAudio();
+    if (!isGameInteractive()) return;
+    try {
+      jumpButton.setPointerCapture(event.pointerId);
+    } catch (_) {
+      // Bazı tarayıcılar yakalamayı reddedebilir; olaylar yine de akar.
+    }
+    jumpPointers.add(event.pointerId);
+    renderJumpButton();
+  });
+  for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+    jumpButton.addEventListener(type, (event) => {
+      if (jumpPointers.delete(event.pointerId)) renderJumpButton();
+    });
+  }
   touchControls.addEventListener("contextmenu", (event) => event.preventDefault());
-  // Klavye/ekran okuyucu ile basılan dokunmatik düğmeler kısa bir hareket üretir.
-  touchControls.addEventListener("click", (event) => {
-    const button = event.target.closest(".touch-button");
-    if (!button || event.detail !== 0 || !isGameInteractive()) return;
-    const action = button.dataset.action;
-    touchInput[action] = true;
-    setTimeout(() => {
-      touchInput[action] = false;
-    }, 180);
+  // Klavye/ekran okuyucu ile etkinleştirilen zıplama düğmesi kısa bir zıplama girdisi üretir.
+  jumpButton.addEventListener("click", (event) => {
+    if (event.detail !== 0 || !isGameInteractive()) return;
+    touchInput.jump = true;
+    setTimeout(() => renderJumpButton(), 180);
   });
 
   function releaseAllInput() {
     keys.clear();
-    touchPointers.clear();
-    recomputeTouchInput();
+    resetJoystick();
+    jumpPointers.clear();
+    renderJumpButton();
   }
 
   function syncControlsEnabled() {
@@ -767,6 +833,11 @@
 
   window.addEventListener("blur", releaseAllInput);
   window.addEventListener("pagehide", releaseAllInput);
+  // Cihaz yönü değişince joystick merkezi yer değiştirir; basılı parmak sıfırlanır.
+  window.addEventListener("orientationchange", releaseAllInput);
+  if (window.screen && window.screen.orientation && window.screen.orientation.addEventListener) {
+    window.screen.orientation.addEventListener("change", releaseAllInput);
+  }
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) releaseAllInput();
   });
@@ -860,11 +931,13 @@
   }
 
   function updatePlayer(dt) {
+    // Klavye yönü basılıysa öncelikli (tam hız); değilse joystick ekseni hızı orantılı belirler.
     let input = 0;
-    if (keys.has("ArrowLeft") || keys.has("KeyA") || touchInput.left) input -= 1;
-    if (keys.has("ArrowRight") || keys.has("KeyD") || touchInput.right) input += 1;
+    if (keys.has("ArrowLeft") || keys.has("KeyA")) input -= 1;
+    if (keys.has("ArrowRight") || keys.has("KeyD")) input += 1;
+    if (input === 0) input = touchInput.axis;
     player.vx = input * MOVE_SPEED;
-    if (input !== 0) player.facing = input;
+    if (input !== 0) player.facing = Math.sign(input);
 
     if ((keys.has("ArrowUp") || keys.has("KeyW") || keys.has("Space") || touchInput.jump) && player.grounded) {
       player.vy = -JUMP_SPEED;
@@ -2165,7 +2238,10 @@
       startGame,
       activateBox,
       hurtPlayer,
-      isGameInteractive
+      isGameInteractive,
+      joystickGeometry,
+      joystickDeadZone: JOYSTICK_DEAD_ZONE,
+      moveSpeed: MOVE_SPEED
     }
   };
 })();
