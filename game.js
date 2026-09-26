@@ -39,6 +39,18 @@
   const joystickKnob = joystick.querySelector(".joystick-knob");
   const jumpButton = touchControls.querySelector('[data-action="jump"]');
   const soundToggles = Array.from(document.querySelectorAll(".sound-toggle"));
+  const levelIntro = document.getElementById("levelIntro");
+  const levelIntroTitle = document.getElementById("levelIntroTitle");
+  const levelIntroFocus = document.getElementById("levelIntroFocus");
+  const summaryDialog = document.getElementById("levelSummaryDialog");
+  const summaryTitle = document.getElementById("summaryTitle");
+  const summaryScore = document.getElementById("summaryScore");
+  const summaryCoins = document.getElementById("summaryCoins");
+  const summaryAnswers = document.getElementById("summaryAnswers");
+  const summaryAccuracy = document.getElementById("summaryAccuracy");
+  const nextLevelButton = document.getElementById("nextLevelButton");
+  const resultStats = document.getElementById("resultStats");
+  const restartButton = document.getElementById("restartButton");
 
   const VIEW = { w: 1280, h: 720 };
   const WORLD = { w: 7500, h: 720 };
@@ -68,76 +80,12 @@
   // Kaynak sprite sheet 1664px genişliğinde ölçüldü; küçültülmüş kopyada kareler orantılı ölçeklenir.
   const SPRITE_SHEET_SOURCE_WIDTH = 1664;
   const MAX_RENDER_SCALE = 2;
-  const LEVELS = [
-    {
-      id: 1,
-      enemySpeed: 1,
-      theme: {
-        skyTop: "#70d4ff",
-        skyMid: "#d5f6ff",
-        skyBottom: "#9ddd78",
-        sun: "#fff2a1",
-        hill: "#5eb85d",
-        grass: "#79dd66",
-        groundTop: "#5fbd55",
-        groundMid: "#4ea850",
-        dirtTop: "#a86c3b",
-        dirtBottom: "#7a4a2d",
-        flag: "#ff6b57"
-      }
-    },
-    {
-      id: 2,
-      enemySpeed: 1.1,
-      theme: {
-        skyTop: "#7b9cff",
-        skyMid: "#d7e5ff",
-        skyBottom: "#b6d78b",
-        sun: "#ffe28d",
-        hill: "#4b9f7b",
-        grass: "#62c987",
-        groundTop: "#42a86d",
-        groundMid: "#32895d",
-        dirtTop: "#8d5d62",
-        dirtBottom: "#57394c",
-        flag: "#55d6ff"
-      }
-    },
-    {
-      id: 3,
-      enemySpeed: 1.15,
-      theme: {
-        skyTop: "#ffb469",
-        skyMid: "#ffe1a8",
-        skyBottom: "#b5d783",
-        sun: "#fff0a8",
-        hill: "#72a85f",
-        grass: "#8bd45c",
-        groundTop: "#77b956",
-        groundMid: "#5b9849",
-        dirtTop: "#9d7049",
-        dirtBottom: "#68402f",
-        flag: "#7e66ff"
-      }
-    },
-    {
-      id: 4,
-      enemySpeed: 1.2,
-      theme: {
-        skyTop: "#5f6fdc",
-        skyMid: "#aeb9ff",
-        skyBottom: "#83c7b6",
-        sun: "#f6d36b",
-        hill: "#3d8f83",
-        grass: "#55d0a3",
-        groundTop: "#3cae89",
-        groundMid: "#2d816b",
-        dirtTop: "#715b83",
-        dirtBottom: "#423355",
-        flag: "#ffd34d"
-      }
-    }
-  ];
+  // Seviye tanımları level-data.js dosyasından gelir (platform, coin, kutu, düşman, tema, matematik profili).
+  const LEVEL_DATA = window.MAVI_LEVEL_DATA;
+  if (!LEVEL_DATA || !Array.isArray(LEVEL_DATA.levels)) {
+    throw new Error("Seviye verisi (level-data.js) yüklenemedi.");
+  }
+  const LEVELS = LEVEL_DATA.levels;
 
   const keys = new Set();
   const assets = {
@@ -160,6 +108,39 @@
   const stick = { pointerId: null, cx: 0, cy: 0, radius: 1, x: 0, y: 0 };
   const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
   const portraitQuery = window.matchMedia("(orientation: portrait) and (hover: none) and (pointer: coarse)");
+  /* Kısa, yumuşak, çocuk dostu WebAudio sesleri. Her olayın kendine özgü imzası vardır.
+   * Her not: dalga tipi, başlangıç/bitiş frekansı (kayma), süre, ses düzeyi, başlama gecikmesi. */
+  const SOUND_DEFS = {
+    jump: [{ type: "sine", f0: 380, f1: 660, dur: 0.12, gain: 0.05 }],
+    land: [{ type: "triangle", f0: 150, f1: 90, dur: 0.09, gain: 0.045 }],
+    coin: [
+      { type: "triangle", f0: 988, dur: 0.06, gain: 0.06 },
+      { type: "triangle", f0: 1319, dur: 0.1, gain: 0.06, at: 0.05 }
+    ],
+    box: [{ type: "triangle", f0: 300, f1: 470, dur: 0.11, gain: 0.06 }],
+    correct: [
+      { type: "sine", f0: 660, dur: 0.09, gain: 0.07 },
+      { type: "sine", f0: 880, dur: 0.14, gain: 0.07, at: 0.08 }
+    ],
+    wrong: [{ type: "triangle", f0: 260, f1: 170, dur: 0.24, gain: 0.05 }],
+    shieldOn: [{ type: "sine", f0: 520, f1: 940, dur: 0.26, gain: 0.05 }],
+    shieldOff: [{ type: "triangle", f0: 300, f1: 200, dur: 0.18, gain: 0.04 }],
+    shieldBlock: [{ type: "sine", f0: 760, f1: 520, dur: 0.12, gain: 0.05 }],
+    stomp: [{ type: "sine", f0: 520, f1: 200, dur: 0.14, gain: 0.07 }],
+    hurt: [{ type: "triangle", f0: 330, f1: 140, dur: 0.28, gain: 0.06 }],
+    rocket: [{ type: "sawtooth", f0: 160, f1: 560, dur: 0.4, gain: 0.022 }],
+    bossHit: [
+      { type: "square", f0: 120, f1: 70, dur: 0.2, gain: 0.03 },
+      { type: "sine", f0: 240, f1: 160, dur: 0.2, gain: 0.05 }
+    ],
+    bossFire: [{ type: "sine", f0: 210, f1: 150, dur: 0.08, gain: 0.02 }],
+    bossAppear: [
+      { type: "triangle", f0: 196, dur: 0.16, gain: 0.05 },
+      { type: "triangle", f0: 165, dur: 0.22, gain: 0.05, at: 0.14 }
+    ],
+    levelComplete: [523, 659, 784, 1047].map((f0, i) => ({ type: "triangle", f0, dur: 0.14, gain: 0.06, at: i * 0.1 }))
+  };
+
   const sounds = createSoundBoard();
   const state = {
     started: false,
@@ -187,80 +168,25 @@
     // Yalnızca görsel: kamera ileri bakış ofseti, efekt zamanlayıcıları, FPS ölçümü
     cameraLook: 0,
     victoryPose: false,
+    // Seviye akışı ve istatistikler
+    introActive: false,
+    introTimer: 0,
+    summaryOpen: false,
+    manualStep: false,
+    geometryLevel: 0,
+    lastSafe: { x: 90, footY: 635 },
+    levelStats: { coins: 0, questions: 0, correct: 0, scoreStart: 0 },
+    totalStats: { coins: 0, questions: 0, correct: 0 },
     pendingAnswerFx: null,
     fps: 60,
     fx: { shakeTime: 0, shakeDuration: 0, shakeStrength: 0, rings: [], successGlow: 0, wrongPulse: 0, time: 0 }
   };
 
-  const platforms = [
-    platform(0, 635, 980, 85, "ground"),
-    platform(980, 650, 560, 70, "ground"),
-    platform(1540, 625, 760, 95, "ground"),
-    platform(2300, 642, 1000, 78, "ground"),
-    platform(3300, 628, 620, 92, "ground"),
-    platform(3920, 650, 520, 70, "ground"),
-    platform(4440, 625, 560, 95, "ground"),
-    platform(5000, 640, 500, 80, "ground"),
-    platform(5500, 625, 500, 95, "ground"),
-    platform(6000, 640, 420, 80, "ground"),
-    platform(6420, 625, 1080, 95, "ground"),
-    platform(270, 492, 260, 34, "grass"),
-    platform(690, 406, 280, 34, "grass"),
-    platform(1170, 505, 260, 34, "grass"),
-    platform(1595, 410, 310, 34, "grass"),
-    platform(2100, 505, 260, 34, "grass"),
-    platform(2535, 424, 340, 34, "grass"),
-    platform(3380, 470, 300, 34, "grass"),
-    platform(3775, 382, 260, 34, "grass"),
-    platform(4205, 492, 300, 34, "grass"),
-    platform(4565, 395, 270, 34, "grass"),
-    platform(5080, 462, 310, 34, "grass"),
-    platform(5480, 375, 300, 34, "grass"),
-    platform(6070, 470, 270, 34, "grass")
-  ];
-
-  const boxes = [
-    questionBox(555, 382),
-    questionBox(1320, 392),
-    questionBox(1980, 372),
-    questionBox(2680, 312),
-    questionBox(3550, 360),
-    questionBox(4320, 382),
-    questionBox(5200, 352),
-    questionBox(6140, 360)
-  ];
-
-  const coins = [
-    ...coinLine(325, topAt(325), 4, 46),
-    ...coinLine(745, topAt(745), 4, 46),
-    ...coinLine(1050, topAt(1050), 5, 48),
-    ...coinLine(1650, topAt(1650), 5, 48),
-    ...coinLine(2140, topAt(2140), 4, 46),
-    ...coinLine(2590, topAt(2590), 5, 46),
-    coin(2930, topAt(2930)),
-    ...coinLine(3395, topAt(3395), 5, 46),
-    ...coinLine(3785, topAt(3785), 4, 46),
-    ...coinLine(4090, topAt(4090), 5, 46),
-    ...coinLine(4595, topAt(4595), 4, 46),
-    coin(4765, topAt(4765)),
-    ...coinLine(5110, topAt(5110), 5, 46),
-    ...coinLine(5505, topAt(5505), 5, 46),
-    coin(5775, topAt(5775)),
-    ...coinLine(6100, topAt(6100), 4, 46),
-    ...coinLine(6600, topAt(6600), 5, 48)
-  ];
-
-  const enemies = [
-    enemy(1360, topAt(1360), 1170, 1430),
-    enemy(2240, topAt(2240), 2100, 2360),
-    enemy(2790, topAt(2790), 2535, 2875),
-    enemy(3580, topAt(3580), 3380, 3680, 92),
-    enemy(4325, topAt(4325), 4205, 4505, 92),
-    enemy(4690, topAt(4690), 4470, 4820, 98),
-    enemy(5290, topAt(5290), 5080, 5390, 98),
-    enemy(5710, topAt(5710), 5500, 5930, 104),
-    enemy(6250, topAt(6250), 6040, 6370, 104)
-  ];
+  // Aktif seviyenin geometrisi. Diziler yerinde doldurulur (dış referanslar geçerli kalır).
+  const platforms = [];
+  const boxes = [];
+  const coins = [];
+  const enemies = [];
 
   const player = {
     kind: "player",
@@ -327,6 +253,47 @@
 
   function coinLine(startX, surfaceY, count, gap) {
     return Array.from({ length: count }, (_, i) => coin(startX + i * gap, surfaceY));
+  }
+
+  // Zıplama yayını gösteren coin dizisi: (x0,y0)→(x1,y1) merkez noktaları, ortası "lift" kadar yukarıda.
+  function coinArc(x0, y0, x1, y1, lift, count) {
+    const size = 30;
+    return Array.from({ length: count }, (_, i) => {
+      const t = count === 1 ? 0.5 : i / (count - 1);
+      const cx = x0 + (x1 - x0) * t;
+      const cy = y0 + (y1 - y0) * t - lift * 4 * t * (1 - t);
+      const c = coin(0, 0);
+      c.x = Math.round(cx - size / 2);
+      c.y = Math.round(cy - size / 2);
+      return c;
+    });
+  }
+
+  function expandCoinDefs(defs) {
+    const out = [];
+    for (const d of defs) {
+      if (d[0] === "line") out.push(...coinLine(d[1], d[2], d[3], d[4]));
+      else if (d[0] === "arc") out.push(...coinArc(d[1], d[2], d[3], d[4], d[5], d[6]));
+      else if (d[0] === "coin") out.push(coin(d[1], d[2]));
+    }
+    return out;
+  }
+
+  // Seviye geometrisini veriden kurar. Boss arenası tüm seviyelerde aynıdır ve sona eklenir.
+  function loadLevelGeometry(level) {
+    const def = LEVELS[level - 1] || LEVELS[0];
+    platforms.length = 0;
+    for (const [x, y, w, h, type] of def.platforms) platforms.push(platform(x, y, w, h, type));
+    const [ax, ay, aw, ah, atype] = LEVEL_DATA.arena.platform;
+    platforms.push(platform(ax, ay, aw, ah, atype));
+    boxes.length = 0;
+    for (const [x, y] of def.boxes) boxes.push(questionBox(x, y));
+    coins.length = 0;
+    coins.push(...expandCoinDefs(def.coins), ...expandCoinDefs(LEVEL_DATA.arenaCoins));
+    enemies.length = 0;
+    for (const [x, surfaceY, minX, maxX, speed] of def.enemies) enemies.push(enemy(x, surfaceY, minX, maxX, speed));
+    state.geometryLevel = level;
+    state.lastSafe = { x: LEVEL_DATA.start.x, footY: LEVEL_DATA.start.footY };
   }
 
   function enemy(x, surfaceY, minX, maxX, speed = 85) {
@@ -444,7 +411,7 @@
     if (player.shield <= 0) return false;
     player.shieldHits += 1;
     player.invuln = 0.45;
-    sounds.enemy();
+    sounds.shieldBlock();
 
     if (player.shieldHits >= MAX_SHIELD_HITS) {
       player.shield = 0;
@@ -487,21 +454,59 @@
     if (state.toastTimer <= 0) toast.classList.remove("show");
   }
 
-  function generateQuestion() {
-    const roll = Math.random();
-    if (roll < 0.48) {
-      const a = rand(8, 45);
-      const b = rand(5, 38);
-      return { text: `${a} + ${b}`, answer: a + b };
+  /* ---------- Matematik soru motoru (seviyenin mathProfile verisiyle) ----------
+   * Toplama sonucu maxResult'u, çıkarma sonucu 0'ın altına düşmez; çarpma yalnızca verilen çarpanlarla.
+   * Aynı soru arka arkaya gelmez. Testler setQuestionSeed ile deterministik üretim yapabilir. */
+  let questionRng = Math.random;
+  let lastQuestionText = "";
+
+  function rngInt(rng, min, max) {
+    return Math.floor(rng() * (max - min + 1)) + min;
+  }
+
+  function pickOperation(profile, rng) {
+    const ops = ["add", "sub", "mul"].filter((k) => profile[k] && profile[k].weight > 0);
+    const total = ops.reduce((sum, k) => sum + profile[k].weight, 0);
+    let roll = rng() * total;
+    for (const k of ops) {
+      roll -= profile[k].weight;
+      if (roll < 0) return k;
     }
-    if (roll < 0.86) {
-      const a = rand(22, 75);
-      const b = rand(4, Math.min(39, a - 1));
-      return { text: `${a} - ${b}`, answer: a - b };
+    return ops[ops.length - 1];
+  }
+
+  function makeQuestion(profile, rng) {
+    const op = pickOperation(profile, rng);
+    if (op === "add") {
+      const p = profile.add;
+      const a = rngInt(rng, p.min, p.maxResult - p.min);
+      const b = rngInt(rng, p.min, p.maxResult - a);
+      return { text: `${a} + ${b}`, answer: a + b, op };
     }
-    const a = rand(2, 9);
-    const b = rand(2, 9);
-    return { text: `${a} × ${b}`, answer: a * b };
+    if (op === "sub") {
+      const p = profile.sub;
+      const a = rngInt(rng, p.minA, p.max);
+      const b = rngInt(rng, p.minB, a - 1);
+      return { text: `${a} - ${b}`, answer: a - b, op };
+    }
+    const p = profile.mul;
+    const factor = p.factors[rngInt(rng, 0, p.factors.length - 1)];
+    const other = rngInt(rng, p.min, p.max);
+    const [a, b] = rng() < 0.5 ? [factor, other] : [other, factor];
+    return { text: `${a} × ${b}`, answer: a * b, op };
+  }
+
+  function generateQuestion(level = state.level, rng = questionRng) {
+    const profile = (LEVELS[level - 1] || LEVELS[0]).mathProfile;
+    let q = makeQuestion(profile, rng);
+    for (let i = 0; i < 20 && q.text === lastQuestionText; i += 1) q = makeQuestion(profile, rng);
+    lastQuestionText = q.text;
+    return q;
+  }
+
+  function setQuestionSeed(seed) {
+    questionRng = seed === null ? Math.random : seededRandom(seed);
+    lastQuestionText = "";
   }
 
   function rand(min, max) {
@@ -616,6 +621,7 @@
     }
     setAnswerLocked(true);
     const given = Number(raw);
+    recordAnswer(given === state.currentQuestion.answer);
     if (given === state.currentQuestion.answer) {
       setQuestionFeedback("Doğru!", "correct");
       showAnswerFx("correct");
@@ -647,10 +653,11 @@
     gameOverDialog.close();
     returnFocusToGame();
     syncControlsEnabled();
+    showLevelIntro();
   });
 
   // Esc veya Android geri tuşu soruyu/oyun sonunu yarıda kapatıp oyunu duraklatılmış bırakmasın.
-  for (const modal of [dialog, gameOverDialog, startDialog, rotateDialog]) {
+  for (const modal of [dialog, gameOverDialog, startDialog, rotateDialog, summaryDialog]) {
     modal.addEventListener("cancel", (event) => event.preventDefault());
   }
   dialog.addEventListener("close", () => {
@@ -658,6 +665,9 @@
   });
   gameOverDialog.addEventListener("close", () => {
     if (state.gameOver) gameOverDialog.showModal();
+  });
+  summaryDialog.addEventListener("close", () => {
+    if (state.summaryOpen) summaryDialog.showModal();
   });
   startDialog.addEventListener("close", () => {
     if (!state.started) startDialog.showModal();
@@ -700,6 +710,10 @@
     if (["ArrowLeft", "ArrowRight", "ArrowUp", "KeyA", "KeyD", "KeyW", "Space"].includes(event.code)) {
       event.preventDefault();
     }
+    if (state.introActive) {
+      if (["Enter", "Space", "Escape"].includes(event.code)) hideLevelIntro();
+      return;
+    }
     if (!isGameInteractive()) return;
     keys.add(event.code);
     if (event.code === "F2") state.debug = !state.debug;
@@ -713,7 +727,15 @@
   /* ---------- Dokunmatik kontroller (Pointer Events) ---------- */
 
   function isGameInteractive() {
-    return state.started && !state.paused && !state.orientationBlocked && !dialog.open && !gameOverDialog.open;
+    return (
+      state.started &&
+      !state.paused &&
+      !state.introActive &&
+      !state.summaryOpen &&
+      !state.orientationBlocked &&
+      !dialog.open &&
+      !gameOverDialog.open
+    );
   }
 
   /* Yuvarlak analog joystick
@@ -892,6 +914,12 @@
   function update(dt) {
     if (!state.started || state.orientationBlocked) return;
     updateToast(dt);
+    if (state.introActive) {
+      state.introTimer -= dt;
+      if (state.introTimer <= 0) hideLevelIntro();
+      updateHud();
+      return;
+    }
     updateQuestionTimer(dt);
     for (const box of boxes) box.bump = Math.max(0, box.bump - dt * 4);
 
@@ -937,6 +965,7 @@
     if (state.questionTimer > 0) return;
     const activeBox = state.activeBox;
     setQuestionFeedback("Süre bitti. Puan yok.", "wrong");
+    recordAnswer(false);
     showAnswerFx("wrong");
     setAnswerLocked(true);
     completeBox(activeBox);
@@ -965,6 +994,7 @@
     if ((keys.has("ArrowUp") || keys.has("KeyW") || keys.has("Space") || touchInput.jump) && player.grounded) {
       player.vy = -JUMP_SPEED;
       player.grounded = false;
+      sounds.jump();
     }
 
     applyPhysics(player, dt, true);
@@ -973,12 +1003,29 @@
       player.x = Math.max(BOSS_ARENA.start + 26, Math.min(state.boss.x - player.w - 90, player.x));
     }
 
+    if (player.grounded) rememberSafeGround();
+
     if (player.y > VIEW.h + 120) {
       hurtPlayer(true);
-      player.x = Math.max(60, state.cameraX + 70);
-      setFootY(player, 260);
+      // Çukura düşünce en son güvenle durulan zemine dön (çukurun üstüne değil)
+      player.x = state.lastSafe.x;
+      setFootY(player, state.lastSafe.footY);
+      player.prevY = player.y;
       player.vx = 0;
       player.vy = 0;
+    }
+  }
+
+  // Güvenli zemin: platformun kenarından en az 24 px içeride ve yakında devriye gezen düşman yok.
+  function rememberSafeGround() {
+    const foot = footY(player);
+    for (const p of platforms) {
+      if (Math.abs(p.y - foot) > 0.5) continue;
+      if (player.x < p.x + 24 || player.x + player.w > p.x + p.w - 24) continue;
+      const threatened = enemies.some((e) => !e.defeated && Math.abs(footY(e) - foot) < 2 && player.x + player.w > e.minX - 60 && player.x < e.maxX + 60);
+      if (threatened) return;
+      state.lastSafe = { x: player.x, footY: p.y };
+      return;
     }
   }
 
@@ -1055,6 +1102,8 @@
       if (rectsOverlap(player, c)) {
         c.collected = true;
         addScore(10, "+10 altın");
+        state.levelStats.coins += 1;
+        state.totalStats.coins += 1;
         spawnCoinSparkle(c.x + c.w / 2, c.y + c.h / 2);
         sounds.coin();
       }
@@ -1118,7 +1167,7 @@
       h: 30,
       vx: -(260 + state.level * 18)
     });
-    sounds.box();
+    sounds.bossFire();
   }
 
   function updateBossFires(dt) {
@@ -1194,7 +1243,7 @@
       });
     }
     showToast("Üç roket geliyor");
-    sounds.box();
+    sounds.rocket();
   }
 
   function updateRockets(dt) {
@@ -1237,7 +1286,7 @@
     boss.health = Math.max(0, boss.health - 1);
     boss.shake = 1;
     onBossHitFx();
-    sounds.enemy();
+    sounds.bossHit();
     showToast(`Boss canı: ${boss.health}`);
     if (boss.health === 0) {
       defeatBoss();
@@ -1256,18 +1305,17 @@
   }
 
   function startBossCelebration() {
-    const nextLevel = state.level + 1;
     state.fireworks = [];
     state.bossCelebration = {
       timer: 3.2,
       burstTimer: 0,
       title: "Tebrikler!",
-      subtitle: nextLevel <= LEVELS.length ? `Seviye ${nextLevel} başlıyor` : "Tüm seviyeler tamamlandı"
+      subtitle: state.level < LEVELS.length ? `${currentLevel().name} tamamlandı` : "Tüm seviyeler tamamlandı"
     };
     spawnFirework(360, 190);
     spawnFirework(720, 145);
     spawnFirework(1010, 215);
-    sounds.correct();
+    sounds.levelComplete();
   }
 
   function updateBossCelebration(dt) {
@@ -1347,8 +1395,8 @@
     player.grounded = false;
     setFootY(player, e.y - 2);
     showToast("Canavar yenildi");
+    sounds.stomp();
     spawnEnemyDefeatPuff(e);
-    sounds.enemy();
   }
 
   function hurtPlayer(fell) {
@@ -1358,7 +1406,7 @@
     player.anim.hurt = PLAYER_ANIM_TIMING.hurt;
     player.vy = -460;
     player.vx = -player.facing * 210;
-    sounds.enemy();
+    sounds.hurt();
     showToast(state.lives > 0 ? "Dikkat!" : "Oyun bitti");
     updateHud();
     if (state.lives === 0) showGameOver();
@@ -1370,6 +1418,8 @@
     state.resultSaved = false;
     releaseAllInput();
     resultKicker.textContent = "Oyun Bitti";
+    restartButton.textContent = "Yeniden Başlat";
+    resultStats.textContent = `Doğru cevaplar: ${state.totalStats.correct}/${state.totalStats.questions} · Ulaşılan: ${levelTitle()}`;
     resultTitle.textContent = "Skor";
     finalScore.textContent = state.score;
     savedScoreStatus.textContent = "";
@@ -1387,7 +1437,11 @@
     resultKicker.textContent = "Tebrikler";
     state.victoryPose = true;
     setPlayerAnimation("victory");
-    resultTitle.textContent = "Final Skor";
+    resultTitle.textContent = "Macera Tamamlandı";
+    restartButton.textContent = "Yeniden Oyna";
+    const t = state.totalStats;
+    const accuracy = t.questions > 0 ? `Genel doğruluk: ${accuracyText(t.correct, t.questions)} (${t.correct}/${t.questions})` : "Hiç soru cevaplanmadı";
+    resultStats.textContent = `${accuracy} · Coin: ${t.coins}`;
     finalScore.textContent = state.score;
     savedScoreStatus.textContent = "";
     renderHighScores(loadHighScores());
@@ -1478,24 +1532,106 @@
     state.boss.boxTimer = 0.7;
     player.x = Math.max(player.x, BOSS_ARENA.start + 60);
     showToast("Büyük canavar!");
-    sounds.box();
+    sounds.bossAppear();
   }
 
   function completeLevel() {
-    if (state.level < LEVELS.length) {
-      state.level += 1;
-      state.lives = 3;
-      resetLevelEntities();
-      resetPlayerPosition();
-      showToast(`Seviye ${state.level}`);
-      sounds.correct();
-    } else {
-      showVictory();
+    if (state.level < LEVELS.length) showLevelSummary();
+    else showVictory();
+  }
+
+  /* ---------- Seviye akışı: istatistik, tanıtım, özet ---------- */
+
+  function resetLevelStats() {
+    state.levelStats = { coins: 0, questions: 0, correct: 0, scoreStart: state.score };
+  }
+
+  function recordAnswer(correct) {
+    state.levelStats.questions += 1;
+    state.totalStats.questions += 1;
+    if (correct) {
+      state.levelStats.correct += 1;
+      state.totalStats.correct += 1;
     }
   }
 
+  function accuracyText(correct, questions) {
+    return questions > 0 ? `%${Math.round((correct / questions) * 100)}` : "—";
+  }
+
+  function levelTitle(level = state.level) {
+    return `Seviye ${level} — ${LEVELS[level - 1].name}`;
+  }
+
+  // Seviye başında kısa tanıtım: en fazla ~2 sn, dokunarak/Enter ile geçilebilir; oyun bu sırada bekler.
+  const LEVEL_INTRO_SECONDS = 2;
+
+  function showLevelIntro() {
+    levelIntroTitle.textContent = levelTitle();
+    levelIntroFocus.textContent = currentLevel().mathProfile.focus;
+    releaseAllInput();
+    state.introActive = true;
+    state.introTimer = LEVEL_INTRO_SECONDS;
+    levelIntro.hidden = false;
+    syncControlsEnabled();
+  }
+
+  function hideLevelIntro() {
+    if (!state.introActive) return;
+    state.introActive = false;
+    state.introTimer = 0;
+    levelIntro.hidden = true;
+    releaseAllInput();
+    state.lastTime = performance.now();
+    syncControlsEnabled();
+    if (!dialog.open && !gameOverDialog.open && !summaryDialog.open) returnFocusToGame();
+  }
+
+  levelIntro.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    unlockAudio();
+    hideLevelIntro();
+  });
+
+  function showLevelSummary() {
+    const st = state.levelStats;
+    const def = currentLevel();
+    const coinTotal = coins.length;
+    summaryTitle.textContent = levelTitle();
+    summaryScore.textContent = String(state.score - st.scoreStart);
+    summaryCoins.textContent = `${st.coins} / ${coinTotal}`;
+    summaryAnswers.textContent = `${st.correct} / ${st.questions}`;
+    summaryAccuracy.textContent = accuracyText(st.correct, st.questions);
+    state.summaryOpen = true;
+    state.paused = true;
+    releaseAllInput();
+    summaryDialog.showModal();
+    syncControlsEnabled();
+    nextLevelButton.focus({ preventScroll: true });
+    return def;
+  }
+
+  function proceedToNextLevel() {
+    if (!state.summaryOpen) return;
+    state.summaryOpen = false;
+    summaryDialog.close();
+    state.level += 1;
+    state.lives = 3;
+    resetLevelEntities();
+    resetPlayerPosition();
+    state.paused = false;
+    updateHud();
+    showLevelIntro();
+  }
+
+  nextLevelButton.addEventListener("click", () => {
+    unlockAudio();
+    proceedToNextLevel();
+  });
+
   function resetGame() {
     state.score = 0;
+    state.totalStats = { coins: 0, questions: 0, correct: 0 };
     state.lives = 3;
     state.level = 1;
     state.bossCelebration = null;
@@ -1509,8 +1645,8 @@
   }
 
   function resetPlayerPosition() {
-    player.x = 90;
-    setFootY(player, 635);
+    player.x = LEVEL_DATA.start.x;
+    setFootY(player, LEVEL_DATA.start.footY);
     player.prevY = player.y;
     player.vx = 0;
     player.vy = 0;
@@ -1526,6 +1662,8 @@
   }
 
   function resetLevelEntities() {
+    loadLevelGeometry(state.level);
+    resetLevelStats();
     const speedMultiplier = currentLevel().enemySpeed;
     for (const c of coins) c.collected = false;
     for (const b of boxes) {
@@ -1670,6 +1808,7 @@
       if (a.airTime >= T.minAirForLand) {
         a.land = T.land;
         spawnLandingDust(player.x + player.w / 2, footY(player), a.peakFall);
+        sounds.land();
       }
       a.airTime = 0;
       a.jumped = false;
@@ -1917,18 +2056,131 @@
     }
     let entry = platformCache.get(index);
     if (!entry) {
-      entry = renderPlatformSprite(p, index, currentTheme(), scale);
+      entry = renderPlatformSprite(p, index, currentTheme(), scale, levelAtmosphere(state.level).platformStyle);
       platformCache.set(index, entry);
     }
     ctx.drawImage(entry.canvas, p.x - entry.padX, p.y - entry.padTop, entry.w, entry.h);
   }
 
+  // Üst yüzey, kenar ve dekorlar seviyenin platform stiline göre çizilir. Dekorlar küçük, soluk ve
+  // çarpışmasızdır; platform yüzeyinin üstünde en fazla ~12 px yükselir.
+  function drawPlatformTop(g, p, topColor, style, rnd) {
+    const cap = g.createLinearGradient(0, 0, 0, 15);
+    cap.addColorStop(0, mixColor(topColor, "#ffffff", 0.22));
+    cap.addColorStop(0.55, topColor);
+    cap.addColorStop(1, mixColor(topColor, "#000000", 0.12));
+    g.fillStyle = cap;
+    roundRect(0, 0, p.w, 15, 7, g);
+    g.fill();
+    g.strokeStyle = "rgba(255, 255, 255, 0.5)";
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(7, 1.6);
+    g.lineTo(p.w - 7, 1.6);
+    g.stroke();
+
+    if (style === "sandstone") {
+      // Kumlu kenar: küçük çakıllar, saçak yok
+      g.fillStyle = mixColor(topColor, "#000000", 0.18);
+      for (let x = 6; x < p.w - 6; x += 10 + rnd() * 14) {
+        g.beginPath();
+        g.ellipse(x, 14, 3 + rnd() * 2, 2, 0, 0, Math.PI * 2);
+        g.fill();
+      }
+    } else if (style === "moonstone") {
+      // Kristal saçaklar
+      g.fillStyle = "rgba(170, 240, 255, 0.75)";
+      for (let x = 6; x < p.w - 6; x += 9 + rnd() * 10) {
+        const hgt = 4 + rnd() * 5;
+        g.beginPath();
+        g.moveTo(x - 2.5, 13);
+        g.lineTo(x, 13 + hgt);
+        g.lineTo(x + 2.5, 13);
+        g.closePath();
+        g.fill();
+      }
+    } else {
+      // Çim/yosun saçakları ve üstte küçük çim uçları
+      g.fillStyle = mixColor(topColor, "#000000", style === "moss" ? 0.16 : 0.08);
+      for (let x = 3; x < p.w - 3; x += 6 + rnd() * 6) {
+        const r = 3 + rnd() * 3;
+        g.beginPath();
+        g.arc(x, 13.5, r, 0, Math.PI);
+        g.fill();
+      }
+      g.fillStyle = mixColor(topColor, "#ffffff", 0.3);
+      for (let x = 6; x < p.w - 6; x += 7 + rnd() * 9) {
+        const bh = 2 + rnd() * 4;
+        g.beginPath();
+        g.moveTo(x - 2, 1);
+        g.lineTo(x + (rnd() - 0.5) * 2, -bh);
+        g.lineTo(x + 2, 1);
+        g.closePath();
+        g.fill();
+      }
+    }
+
+    // Dekorlar: yalnızca geniş zemin platformlarında, seyrek
+    if (p.type !== "ground" || p.w < 250) return;
+    const count = Math.floor(p.w / 170);
+    for (let i = 0; i < count; i += 1) {
+      const x = 30 + ((p.w - 60) * (i + 0.2 + rnd() * 0.6)) / count;
+      g.save();
+      g.globalAlpha = 0.85;
+      if (style === "garden") {
+        // Çiçek
+        g.strokeStyle = mixColor(topColor, "#000000", 0.2);
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.moveTo(x, 1);
+        g.lineTo(x, -7);
+        g.stroke();
+        g.fillStyle = rnd() < 0.5 ? "#ff9fb8" : "#fff08a";
+        for (let k = 0; k < 5; k += 1) {
+          const a = (Math.PI * 2 * k) / 5;
+          g.beginPath();
+          g.arc(x + Math.cos(a) * 2.6, -9 + Math.sin(a) * 2.6, 2, 0, Math.PI * 2);
+          g.fill();
+        }
+        g.fillStyle = "#ffffff";
+        g.beginPath();
+        g.arc(x, -9, 1.5, 0, Math.PI * 2);
+        g.fill();
+      } else if (style === "moss") {
+        // Soluk mantar
+        g.fillStyle = "#e8e2d6";
+        g.fillRect(x - 1.5, -6, 3, 7);
+        g.fillStyle = "#c9a8a0";
+        g.beginPath();
+        g.ellipse(x, -6, 6, 4, 0, Math.PI, 0);
+        g.fill();
+      } else if (style === "sandstone") {
+        // Küçük kaya
+        g.fillStyle = mixColor(topColor, "#000000", 0.3);
+        g.beginPath();
+        g.ellipse(x, -2, 7, 5, 0, Math.PI, 0);
+        g.fill();
+      } else if (style === "moonstone") {
+        // Işıltılı kristal
+        g.fillStyle = "rgba(180, 235, 255, 0.9)";
+        g.beginPath();
+        g.moveTo(x - 4, 1);
+        g.lineTo(x - 1, -11);
+        g.lineTo(x + 3, -6);
+        g.lineTo(x + 4, 1);
+        g.closePath();
+        g.fill();
+      }
+      g.restore();
+    }
+  }
+
   // Işık sol üstten gelir: üst yüzey açık, ön yüz koyu, sağ kenar gölgeli.
   // Çarpışma dikdörtgeni aynen kalır; hacim ön/alt tarafa doğru eklenir.
-  function renderPlatformSprite(p, index, theme, scale) {
+  function renderPlatformSprite(p, index, theme, scale, style = "garden") {
     const floating = p.type === "grass";
     const padX = 5;
-    const padTop = 7;
+    const padTop = 16; // üstteki küçük dekorlar için pay (yalnızca görsel)
     const under = floating ? 20 : 0;
     const w = p.w + padX * 2;
     const h = padTop + p.h + under + 2;
@@ -2017,40 +2269,18 @@
     g.fillRect(0, 13, p.w, 11);
     g.restore();
 
-    // Üst yüzey (çim) — daha açık, üst kenarda bevel ışığı
-    const cap = g.createLinearGradient(0, 0, 0, 15);
-    cap.addColorStop(0, mixColor(topColor, "#ffffff", 0.22));
-    cap.addColorStop(0.55, topColor);
-    cap.addColorStop(1, mixColor(topColor, "#000000", 0.12));
-    g.fillStyle = cap;
-    roundRect(0, 0, p.w, 15, 7, g);
-    g.fill();
-    g.strokeStyle = "rgba(255, 255, 255, 0.5)";
-    g.lineWidth = 2;
-    g.beginPath();
-    g.moveTo(7, 1.6);
-    g.lineTo(p.w - 7, 1.6);
-    g.stroke();
-
-    // Ön kenardan sarkan çim saçakları
-    g.fillStyle = mixColor(topColor, "#000000", 0.08);
-    for (let x = 3; x < p.w - 3; x += 6 + rnd() * 6) {
-      const r = 3 + rnd() * 3;
-      g.beginPath();
-      g.arc(x, 13.5, r, 0, Math.PI);
-      g.fill();
+    if (style === "sandstone") {
+      // Kumtaşı: belirgin yatay katmanlar
+      g.save();
+      roundRect(0, 0, p.w, p.h, 9, g);
+      g.clip();
+      for (let y = 20, k = 0; y < p.h + under; y += 14, k += 1) {
+        g.fillStyle = k % 2 === 0 ? "rgba(255, 220, 170, 0.14)" : "rgba(90, 30, 15, 0.12)";
+        g.fillRect(0, y, p.w, 7);
+      }
+      g.restore();
     }
-    // Üstte küçük çim uçları (yalnızca görsel, birkaç piksel)
-    g.fillStyle = mixColor(topColor, "#ffffff", 0.3);
-    for (let x = 6; x < p.w - 6; x += 7 + rnd() * 9) {
-      const bh = 2 + rnd() * 4;
-      g.beginPath();
-      g.moveTo(x - 2, 1);
-      g.lineTo(x + (rnd() - 0.5) * 2, -bh);
-      g.lineTo(x + 2, 1);
-      g.closePath();
-      g.fill();
-    }
+    drawPlatformTop(g, p, topColor, style, rnd);
     return { canvas, padX, padTop, w, h };
   }
 
@@ -2070,13 +2300,45 @@
   // Opak katmanların arkası boyanmaz: dağlar y≈530'dan, orta tepeler y≈600'den aşağısını tamamen örter.
   const SKY_BOTTOM = 530;
   const MOUNTAIN_BOTTOM = 600;
+  // Çukurların görünen derinliği bu çizgiden aşağı çizilir (yakın katman bunun üstünü örter).
+  const ABYSS_TOP = 646;
 
   // Seviye atmosferleri mevcut renk paletlerinden türetilir.
-  const LEVEL_ATMOSPHERE = {
-    1: { name: "parlak-gunduz", light: { x: 150, y: 112, r: 58, kind: "sun" }, glow: "rgba(255, 246, 190, 0.55)", cloud: "#ffffff", cloudAlpha: 0.9, mist: 0, stars: 0 },
-    2: { name: "serin-vadi", light: { x: 1060, y: 96, r: 46, kind: "sun" }, glow: "rgba(230, 245, 255, 0.45)", cloud: "#f2f8ff", cloudAlpha: 0.8, mist: 0.5, stars: 0 },
-    3: { name: "gun-batimi", light: { x: 880, y: 430, r: 96, kind: "sun" }, glow: "rgba(255, 190, 120, 0.6)", cloud: "#ffd9c4", cloudAlpha: 0.85, mist: 0.2, stars: 0 },
-    4: { name: "mor-aksam", light: { x: 1040, y: 104, r: 38, kind: "moon" }, glow: "rgba(220, 220, 255, 0.35)", cloud: "#c9cdf5", cloudAlpha: 0.55, mist: 0.25, stars: 70 }
+  // Seviye atmosferleri level-data.js içindeki "atmosphere" alanından gelir (ışık, sis, yıldız,
+  // uzak/orta/yakın silüet türü ve platform stili).
+  function levelAtmosphere(level) {
+    return (LEVELS[level - 1] || LEVELS[0]).atmosphere;
+  }
+
+  // Periyodik üçgen dalga (0–1), döşeme kenarlarında birleşir.
+  function tri(x, period, phase = 0) {
+    const t = ((x * period) / PARALLAX_TILE_W + phase) % 1;
+    return 1 - Math.abs(t * 2 - 1);
+  }
+
+  function smoothstep(a, b, x) {
+    const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  }
+
+  function silhouette(g, fn, bottom) {
+    g.beginPath();
+    g.moveTo(0, bottom);
+    for (let x = 0; x <= PARALLAX_TILE_W; x += 6) g.lineTo(x, fn(x));
+    g.lineTo(PARALLAX_TILE_W, bottom);
+    g.closePath();
+  }
+
+  // Uzak katman şekilleri: hepsi y ≥ 530'u tamamen örter (gökyüzü o çizgide biter).
+  const FAR_SHAPES = {
+    hills: (x) =>
+      440 + 46 * Math.sin((Math.PI * 2 * 2 * x) / PARALLAX_TILE_W + 0.4) + 28 * Math.sin((Math.PI * 2 * 5 * x) / PARALLAX_TILE_W + 1.7) + 12 * Math.sin((Math.PI * 2 * 11 * x) / PARALLAX_TILE_W + 0.2),
+    peaks: (x) => 500 - 100 * tri(x, 6, 0.1) - 50 * tri(x, 13, 0.35),
+    mesas: (x) => {
+      const a = Math.sin((Math.PI * 2 * 3 * x) / PARALLAX_TILE_W + 0.6) + 0.45 * Math.sin((Math.PI * 2 * 7 * x) / PARALLAX_TILE_W + 2.1);
+      return 520 - 110 * smoothstep(0.05, 0.3, a) - 45 * smoothstep(0.75, 0.95, a);
+    },
+    spires: (x) => 505 - 130 * Math.pow(tri(x, 9, 0.2), 3) - 55 * tri(x, 4, 0.6)
   };
 
   let parallaxCache = null;
@@ -2103,7 +2365,7 @@
 
   function buildParallax(level, scale, key) {
     const theme = (LEVELS[level - 1] || LEVELS[0]).theme;
-    const atmo = LEVEL_ATMOSPHERE[level] || LEVEL_ATMOSPHERE[1];
+    const atmo = levelAtmosphere(level);
     const rnd = seededRandom(level * 31337);
 
     // 1) Gökyüzü, ışık kaynağı, yıldızlar (ekrana sabit)
@@ -2174,19 +2436,34 @@
     const cloudDef = PARALLAX_LAYERS.find((l) => l.id === "far-clouds");
     layers.push({ id: "far-clouds", factor: cloudDef.factor, drift: cloudDef.drift, sprites: clouds });
 
-    // 3) Uzak dağ/tepe silüetleri (hava perspektifi: gökyüzü rengine yakın)
+    // 3) Uzak silüetler (hava perspektifi: gökyüzü rengine yakın). Şekil seviyeye göre değişir.
     tile("far-mountains", 340, MOUNTAIN_BOTTOM - 340, (g) => {
-      const far = mixColor(theme.hill, theme.skyMid, 0.62);
-      g.fillStyle = far;
-      ridge(g, 440, [[46, 2, 0.4], [28, 5, 1.7], [12, 11, 0.2]], 690);
+      const shape = FAR_SHAPES[atmo.far] || FAR_SHAPES.hills;
+      g.fillStyle = mixColor(theme.hill, theme.skyMid, 0.62);
+      silhouette(g, shape, 690);
       g.fill();
-      // Işık alan sırtlar
       g.save();
       g.clip();
-      g.fillStyle = "rgba(255, 255, 255, 0.12)";
-      ridge(g, 452, [[46, 2, 0.4], [28, 5, 1.7], [12, 11, 0.2]], 690);
-      g.translate(-14, 0);
-      g.fill();
+      if (atmo.far === "peaks") {
+        // Karlı zirveler
+        g.fillStyle = "rgba(255, 255, 255, 0.55)";
+        g.fillRect(0, 340, PARALLAX_TILE_W, 55);
+      } else if (atmo.far === "mesas") {
+        // Kanyon katmanları
+        g.fillStyle = "rgba(120, 50, 30, 0.14)";
+        for (let y = 405; y < 530; y += 18) g.fillRect(0, y, PARALLAX_TILE_W, 7);
+      } else if (atmo.far === "spires") {
+        // Kristal yüzey ışıltısı
+        g.fillStyle = "rgba(200, 220, 255, 0.18)";
+        silhouette(g, (x) => shape(x) + 10, 690);
+        g.translate(-10, 0);
+        g.fill();
+      } else {
+        g.fillStyle = "rgba(255, 255, 255, 0.12)";
+        silhouette(g, (x) => shape(x) + 12, 690);
+        g.translate(-14, 0);
+        g.fill();
+      }
       g.restore();
       if (atmo.mist > 0) {
         const mist = g.createLinearGradient(0, 470, 0, 600);
@@ -2203,17 +2480,50 @@
       g.fillStyle = mid;
       ridge(g, 540, [[34, 3, 1.1], [16, 7, 2.3], [6, 13, 0.6]], 720);
       g.fill();
-      // Sırta gömülü ağaç öbekleri: gövdeleri tepenin içinde kalır, havada asılı görünmez
-      g.fillStyle = mixColor(theme.hill, theme.skyBottom, 0.18);
       const ridgeAt = (x) => 540 + 34 * Math.sin((Math.PI * 2 * 3 * x) / PARALLAX_TILE_W + 1.1) + 16 * Math.sin((Math.PI * 2 * 7 * x) / PARALLAX_TILE_W + 2.3) + 6 * Math.sin((Math.PI * 2 * 13 * x) / PARALLAX_TILE_W + 0.6);
-      for (let i = 0; i < 7; i += 1) {
-        const x = (PARALLAX_TILE_W * (i + rnd() * 0.7)) / 7;
+      const accent = mixColor(theme.hill, theme.skyBottom, 0.18);
+      for (let i = 0; i < 8; i += 1) {
+        const x = (PARALLAX_TILE_W * (i + rnd() * 0.7)) / 8;
         const r = 11 + rnd() * 9;
         for (const dx of [-PARALLAX_TILE_W, 0, PARALLAX_TILE_W]) {
-          for (const [ox, k] of [[-r * 0.9, 0.75], [0, 1], [r * 0.9, 0.8]]) {
-            g.beginPath();
-            g.arc(x + dx + ox, ridgeAt(x + ox) + r * 0.25, r * k, 0, Math.PI * 2);
+          const bx = x + dx;
+          const by = ridgeAt(x);
+          g.fillStyle = accent;
+          if (atmo.mid === "pines") {
+            // Çam ağaçları: gövdesi sırtın içinde kalan üçgenler
+            for (const [ox, k] of [[-r, 0.8], [0, 1.15], [r * 1.1, 0.9]]) {
+              g.beginPath();
+              g.moveTo(bx + ox - r * 0.6 * k, by + 8);
+              g.lineTo(bx + ox, by - r * 3 * k);
+              g.lineTo(bx + ox + r * 0.6 * k, by + 8);
+              g.closePath();
+              g.fill();
+            }
+          } else if (atmo.mid === "rocks") {
+            // Kaya sütunları (kanyon hoodoo'ları)
+            const h = 40 + rnd() * 50;
+            roundRect(bx - r * 0.55, by - h, r * 1.1, h + 12, r * 0.5, g);
             g.fill();
+            g.fillStyle = "rgba(255, 220, 180, 0.18)";
+            g.fillRect(bx - r * 0.55, by - h * 0.6, r * 1.1, 5);
+          } else if (atmo.mid === "crystals") {
+            // Kristal kümeleri: yarı saydam açık kenarlı
+            g.fillStyle = mixColor(theme.hill, "#bcd4ff", 0.35);
+            for (const [ox, k] of [[-r * 0.7, 0.7], [0, 1.2], [r * 0.6, 0.85]]) {
+              g.beginPath();
+              g.moveTo(bx + ox - r * 0.35 * k, by + 6);
+              g.lineTo(bx + ox - r * 0.2 * k, by - r * 2.4 * k);
+              g.lineTo(bx + ox + r * 0.1 * k, by - r * 2.9 * k);
+              g.lineTo(bx + ox + r * 0.35 * k, by + 6);
+              g.closePath();
+              g.fill();
+            }
+          } else {
+            for (const [ox, k] of [[-r * 0.9, 0.75], [0, 1], [r * 0.9, 0.8]]) {
+              g.beginPath();
+              g.arc(bx + ox, ridgeAt(x + ox) + r * 0.25, r * k, 0, Math.PI * 2);
+              g.fill();
+            }
           }
         }
       }
@@ -2225,24 +2535,81 @@
       g.fillStyle = near;
       ridge(g, 640, [[10, 4, 0.3], [5, 9, 1.9]], 720);
       g.fill();
-      g.fillStyle = mixColor(theme.grass, theme.hill, 0.5);
+      const bush = mixColor(theme.grass, theme.hill, 0.5);
       for (let i = 0; i < 12; i += 1) {
         const x = (PARALLAX_TILE_W * (i + rnd() * 0.8)) / 12;
         const r = 10 + rnd() * 14;
+        const hue = rnd();
         for (const dx of [-PARALLAX_TILE_W, 0, PARALLAX_TILE_W]) {
-          g.beginPath();
-          g.arc(x + dx, 640, r, Math.PI, 0);
-          g.arc(x + dx + r, 642, r * 0.7, Math.PI, 0);
-          g.fill();
+          const bx = x + dx;
+          g.fillStyle = bush;
+          if (atmo.near === "desert") {
+            // Küçük kayalar ve kaktüs silüetleri
+            g.beginPath();
+            g.ellipse(bx, 642, r, r * 0.45, 0, Math.PI, 0);
+            g.fill();
+            if (hue < 0.45) {
+              roundRect(bx + r, 612, 8, 34, 4, g);
+              g.fill();
+              roundRect(bx + r - 9, 622, 8, 14, 4, g);
+              g.fill();
+              roundRect(bx + r + 9, 618, 8, 14, 4, g);
+              g.fill();
+            }
+          } else if (atmo.near === "ferns") {
+            g.beginPath();
+            g.arc(bx, 640, r * 0.8, Math.PI, 0);
+            g.fill();
+            g.strokeStyle = bush;
+            g.lineWidth = 3;
+            for (let k = -2; k <= 2; k += 1) {
+              g.beginPath();
+              g.moveTo(bx + k * 4, 640);
+              g.quadraticCurveTo(bx + k * 9, 626, bx + k * 14, 620 + Math.abs(k) * 4);
+              g.stroke();
+            }
+          } else {
+            g.beginPath();
+            g.arc(bx, 640, r, Math.PI, 0);
+            g.arc(bx + r, 642, r * 0.7, Math.PI, 0);
+            g.fill();
+            if (atmo.near === "flowers") {
+              g.fillStyle = hue < 0.5 ? "rgba(255, 190, 210, 0.85)" : "rgba(255, 240, 150, 0.85)";
+              for (let k = 0; k < 3; k += 1) {
+                g.beginPath();
+                g.arc(bx - r * 0.5 + k * r * 0.6, 632 - (k % 2) * 6, 2.6, 0, Math.PI * 2);
+                g.fill();
+              }
+            } else if (atmo.near === "glow") {
+              g.fillStyle = "rgba(170, 255, 240, 0.8)";
+              for (let k = 0; k < 2; k += 1) {
+                g.beginPath();
+                g.arc(bx - r * 0.3 + k * r * 0.8, 628 - k * 5, 2.2, 0, Math.PI * 2);
+                g.fill();
+              }
+            }
+          }
         }
       }
     });
 
-    return { key, level, atmosphere: atmo.name, sky, layers };
+    // 6) Çukur derinliği: zeminin olmadığı yerde alt bant koyulaşır (su/gökyüzü gibi görünmesin,
+    // çocuk tehlikeyi anlasın). Tek sütunluk önbellekli şerit olarak çizilir.
+    const abyss = makeCanvas(4, 80);
+    const ag = abyss.getContext("2d");
+    const ab = ag.createLinearGradient(0, 0, 0, 80);
+    ab.addColorStop(0, mixColor(theme.hill, "#000000", 0.3));
+    ab.addColorStop(0.35, mixColor(theme.dirtBottom, "#000000", 0.45));
+    ab.addColorStop(1, mixColor(theme.dirtBottom, "#000000", 0.7));
+    ag.fillStyle = ab;
+    ag.fillRect(0, 0, 4, 80);
+
+    return { key, level, atmosphere: atmo.name, sky, layers, abyss };
   }
 
   function drawParallax() {
     const bg = getParallax();
+    ctx.drawImage(bg.abyss, 0, ABYSS_TOP, VIEW.w, VIEW.h - ABYSS_TOP);
     ctx.drawImage(bg.sky, 0, 0, VIEW.w, SKY_BOTTOM);
     for (const layer of bg.layers) {
       const travel = state.cameraX * layer.factor + state.fx.time * layer.drift;
@@ -3063,6 +3430,7 @@
       if (context.state === "suspended") context.resume().catch(() => {});
       return context;
     }
+    // Yalnızca kullanıcı etkileşimi (dokunma, tıklama, tuş) sırasında çağrılır.
     function unlock() {
       const audio = getContext();
       if (!audio || unlocked) return audio;
@@ -3075,8 +3443,9 @@
       unlocked = true;
       return audio;
     }
-    function play(freq, duration, type, gainValue) {
-      if (!state.soundEnabled) return;
+    function play(name) {
+      // Ses kapalıysa veya kullanıcı henüz etkileşmediyse hiçbir şey başlatılmaz.
+      if (!state.soundEnabled || !unlocked) return;
       let audio = null;
       try {
         audio = getContext();
@@ -3084,30 +3453,27 @@
         return;
       }
       if (!audio) return;
-      const osc = audio.createOscillator();
-      const gain = audio.createGain();
-      osc.frequency.value = freq;
-      osc.type = type;
-      gain.gain.setValueAtTime(gainValue, audio.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + duration);
-      osc.connect(gain);
-      gain.connect(audio.destination);
-      osc.start();
-      osc.stop(audio.currentTime + duration);
+      const now = audio.currentTime;
+      for (const note of SOUND_DEFS[name]) {
+        const t0 = now + (note.at || 0);
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+        osc.type = note.type;
+        osc.frequency.setValueAtTime(note.f0, t0);
+        if (note.f1) osc.frequency.exponentialRampToValueAtTime(note.f1, t0 + note.dur);
+        // Yumuşak başlangıç (tık sesi olmasın) ve hızlı sönüm
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.exponentialRampToValueAtTime(note.gain, t0 + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.001, t0 + note.dur);
+        osc.connect(gain);
+        gain.connect(audio.destination);
+        osc.start(t0);
+        osc.stop(t0 + note.dur + 0.02);
+      }
     }
-    return {
-      coin: () => play(920, 0.09, "triangle", 0.08),
-      box: () => play(420, 0.11, "square", 0.06),
-      correct: () => {
-        play(660, 0.08, "sine", 0.07);
-        setTimeout(() => play(880, 0.12, "sine", 0.07), 75);
-      },
-      wrong: () => play(160, 0.18, "sawtooth", 0.05),
-      shieldOn: () => play(520, 0.24, "triangle", 0.06),
-      shieldOff: () => play(240, 0.18, "triangle", 0.05),
-      enemy: () => play(120, 0.16, "square", 0.04),
-      unlock
-    };
+    const board = { unlock, isUnlocked: () => unlocked, hasContext: () => context !== null };
+    for (const name of Object.keys(SOUND_DEFS)) board[name] = () => play(name);
+    return board;
   }
 
   function unlockAudio() {
@@ -3124,18 +3490,21 @@
     const dt = Math.max(0, Math.min(1 / 30, rawDt));
     state.lastTime = now;
     if (rawDt > 0 && rawDt < 1) state.fps += (1 / rawDt - state.fps) * 0.05;
-    update(dt);
+    // Testlerde elle adım modu: oyun güncellemesi test tarafından yürütülür, çizim sürer.
+    if (!state.manualStep) update(dt);
     draw();
     requestAnimationFrame(loop);
   }
 
+  // Debug: ?level=N doğrudan N. seviyeyle başlar; ?boss=1 boss arenasına gider.
   function applyDebugStart() {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("boss") !== "1") return;
     const levelParam = Number(params.get("level"));
-    if (Number.isInteger(levelParam) && levelParam >= 1 && levelParam <= LEVELS.length) {
+    if (Number.isInteger(levelParam) && levelParam >= 1 && levelParam <= LEVELS.length && levelParam !== state.level) {
       state.level = levelParam;
+      resetLevelEntities();
     }
+    if (params.get("boss") !== "1") return;
     player.x = BOSS_ARENA.start + 80;
     setFootY(player, BOSS_ARENA.floorY);
     player.prevY = player.y;
@@ -3207,18 +3576,22 @@
     syncControlsEnabled();
   }
 
-  function startGame() {
+  function startGame({ intro = true } = {}) {
     if (state.started) return;
-    unlockAudio();
     state.started = true;
     state.lastTime = performance.now();
     startDialog.close();
     returnFocusToGame();
     syncControlsEnabled();
     updateOrientation();
+    if (intro) showLevelIntro();
   }
 
-  startButton.addEventListener("click", startGame);
+  startButton.addEventListener("click", () => {
+    // Ses yalnızca kullanıcı etkileşimiyle açılır
+    unlockAudio();
+    startGame();
+  });
 
   /* ---------- Dikey kullanım uyarısı ---------- */
 
@@ -3276,14 +3649,16 @@
     window.visualViewport.addEventListener("resize", updateVisualViewport);
   }
 
-  setFootY(player, 635);
+  resetLevelEntities();
+  setFootY(player, LEVEL_DATA.start.footY);
   applyDebugStart();
   applySoundUi();
   updateHud();
   resizeCanvas();
   updateVisualViewport();
+  // autostart=1 test/debug içindir: tanıtım atlanır.
   if (new URLSearchParams(window.location.search).get("autostart") === "1") {
-    startGame();
+    startGame({ intro: false });
   } else {
     showStartScreen();
   }
@@ -3329,8 +3704,33 @@
       onBossHitFx,
       fx: state.fx
     },
+    levelData: LEVEL_DATA,
     test: {
       rectsOverlap,
+      setQuestionSeed,
+      generateQuestion,
+      setManualStep(on) {
+        state.manualStep = Boolean(on);
+      },
+      // Gerçek update() fonksiyonunu n kare çalıştırır (deterministik, 60 FPS adımı)
+      step(n = 1, dt = 1 / 60) {
+        for (let i = 0; i < n; i += 1) update(dt);
+      },
+      dismissQuestion() {
+        state.currentQuestion = null;
+        state.activeBox = null;
+        state.questionTimer = 0;
+        state.paused = false;
+        dialog.close();
+        releaseAllInput();
+        syncControlsEnabled();
+      },
+      hideLevelIntro,
+      proceedToNextLevel,
+      soundNames: Object.keys(SOUND_DEFS),
+      soundDefs: SOUND_DEFS,
+      audioUnlocked: () => sounds.isUnlocked(),
+      audioContextCreated: () => sounds.hasContext(),
       footY,
       topAt,
       coinGap: COIN_GAP,

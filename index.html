@@ -61,6 +61,14 @@
         </section>
 
         <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+        <div id="levelIntro" class="level-intro" role="status" aria-live="polite" hidden>
+          <div class="level-intro-card">
+            <h2 id="levelIntroTitle" class="level-intro-title">Seviye 1 — Matematik Bahçesi</h2>
+            <p id="levelIntroFocus" class="level-intro-focus">Toplama ve çıkarma</p>
+            <p class="level-intro-hint" aria-hidden="true">Geçmek için dokun</p>
+          </div>
+        </div>
       </div>
 
       <section class="touch-controls" id="touchControls" aria-label="Dokunmatik kontroller">
@@ -163,12 +171,27 @@
       </form>
     </dialog>
 
+    <dialog id="levelSummaryDialog" class="summary-dialog" aria-labelledby="summaryTitle" aria-describedby="summaryStats">
+      <div class="summary-card">
+        <span class="dialog-kicker">Seviye tamamlandı</span>
+        <h2 id="summaryTitle">Seviye 1 — Matematik Bahçesi</h2>
+        <dl id="summaryStats" class="summary-stats">
+          <div class="summary-stat"><dt>Puan</dt><dd id="summaryScore">0</dd></div>
+          <div class="summary-stat"><dt>Coin</dt><dd id="summaryCoins">0</dd></div>
+          <div class="summary-stat"><dt>Doğru / Soru</dt><dd id="summaryAnswers">0 / 0</dd></div>
+          <div class="summary-stat"><dt>Doğruluk</dt><dd id="summaryAccuracy">—</dd></div>
+        </dl>
+        <button id="nextLevelButton" class="primary-button" type="button">Sonraki Seviyeye Geç</button>
+      </div>
+    </dialog>
+
     <dialog id="gameOverDialog" class="game-over-dialog" aria-labelledby="resultTitle">
       <form method="dialog" id="gameOverForm">
         <div class="result-main">
           <span class="dialog-kicker" id="resultKicker">Oyun Bitti</span>
           <h2 id="resultTitle">Skor</h2>
           <strong id="finalScore">0</strong>
+          <p id="resultStats" class="result-stats"></p>
           <label for="playerNameInput">Oyuncu Adı</label>
           <input id="playerNameInput" class="name-input" type="text" maxlength="16" autocomplete="nickname" enterkeyhint="done" value="Oyuncu">
           <p id="savedScoreStatus" class="saved-score-status" role="status" aria-live="polite"></p>
@@ -181,6 +204,7 @@
       </form>
     </dialog>
 
+    <script src="level-data.js?v=pwa-1"></script>
     <script src="game.js?v=pwa-1"></script>
     <script src="pwa.js?v=pwa-1"></script>
   </body>

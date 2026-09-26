@@ -13,12 +13,13 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import { tmpdir } from "node:os";
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { loadLevelData, validateLevels } from "./level-validator.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outArgIndex = process.argv.indexOf("--out");
 const outDir = resolve(root, outArgIndex > -1 ? process.argv[outArgIndex + 1] : "dist");
 
-const FILES = ["index.html", "styles.css", "game.js", "pwa.js", "manifest.webmanifest", "service-worker.js"];
+const FILES = ["index.html", "styles.css", "level-data.js", "game.js", "pwa.js", "manifest.webmanifest", "service-worker.js"];
 const DIRS = ["assets/img", "assets/icons"];
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const realTmp = realpathSync(tmpdir());
@@ -52,6 +53,9 @@ function assertSafeOutDir(dir) {
 }
 
 async function main() {
+  // Geçersiz seviye verisiyle yayın paketi üretilmez
+  const { errors: levelErrors } = validateLevels(loadLevelData(join(root, "level-data.js")));
+  if (levelErrors.length) fail(`seviye verisi geçersiz:\n  - ${levelErrors.join("\n  - ")}`);
   assertSafeOutDir(outDir);
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });

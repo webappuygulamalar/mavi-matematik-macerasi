@@ -17,6 +17,7 @@ const CORE_ASSETS = [
   "./",
   "./index.html",
   "./styles.css?v=pwa-1",
+  "./level-data.js?v=pwa-1",
   "./game.js?v=pwa-1",
   "./pwa.js?v=pwa-1",
   "./manifest.webmanifest"
