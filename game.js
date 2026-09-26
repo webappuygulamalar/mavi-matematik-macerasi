@@ -52,6 +52,7 @@
   const resultStats = document.getElementById("resultStats");
   const restartButton = document.getElementById("restartButton");
   const stage = document.querySelector(".stage");
+  const gameShell = document.getElementById("gameShell");
   const pauseButton = document.getElementById("pauseButton");
   const menuDialog = document.getElementById("menuDialog");
   const menuPanels = Array.from(menuDialog.querySelectorAll(".menu-panel"));
@@ -67,7 +68,12 @@
   const gameOverMenuButton = document.getElementById("gameOverMenuButton");
   const motionSegments = Array.from(document.querySelectorAll("[data-motion]"));
 
+  // Görünüm alanı (mantıksal piksel). Yükseklik sabit 720; genişlik ekran oranına uyarlanır
+  // (layoutViewport): geniş telefonlarda oyuncu aynı ölçekte yalnızca biraz daha geniş alan görür.
+  // Dünya, fizik ve platform koordinatları bundan etkilenmez.
   const VIEW = { w: 1280, h: 720 };
+  const VIEW_MIN_W = 1280; // 16:9
+  const VIEW_MAX_W = 1680; // ~21:9; daha geniş ekranlarda oynanış dengesi için kenarlar sahne rengiyle dolar
   const WORLD = { w: 7500, h: 720 };
   const BOSS_ARENA = { start: 6420, end: 7480, bossX: 7060, floorY: 625 };
   const FINISH = { x: 7360, w: 70 };
@@ -99,6 +105,7 @@
   // Kaynak sprite sheet 1664px genişliğinde ölçüldü; küçültülmüş kopyada kareler orantılı ölçeklenir.
   const SPRITE_SHEET_SOURCE_WIDTH = 1664;
   const MAX_RENDER_SCALE = 2;
+  const WIDE_PIXEL_BUDGET = 1.1e6; // ≈ 16:9 telefonda (1382x777) kullanılan arka bellek
   // Seviye tanımları level-data.js dosyasından gelir (platform, coin, kutu, düşman, tema, matematik profili).
   const LEVEL_DATA = window.MAVI_LEVEL_DATA;
   if (!LEVEL_DATA || !Array.isArray(LEVEL_DATA.levels)) {
@@ -321,6 +328,7 @@
     enemies.length = 0;
     for (const [x, surfaceY, minX, maxX, speed] of def.enemies) enemies.push(enemy(x, surfaceY, minX, maxX, speed));
     state.geometryLevel = level;
+    if (typeof applySceneColors === "function") applySceneColors();
     state.lastSafe = { x: LEVEL_DATA.start.x, footY: LEVEL_DATA.start.footY };
   }
 
@@ -1377,9 +1385,10 @@
       title: "Tebrikler!",
       subtitle: state.level < LEVELS.length ? `${currentLevel().name} tamamlandı` : "Tüm seviyeler tamamlandı"
     };
-    spawnFirework(360, 190);
-    spawnFirework(720, 145);
-    spawnFirework(1010, 215);
+    const cx = (VIEW.w - VIEW_MIN_W) / 2;
+    spawnFirework(cx + 360, 190);
+    spawnFirework(cx + 720, 145);
+    spawnFirework(cx + 1010, 215);
     sounds.levelComplete();
   }
 
@@ -1390,8 +1399,9 @@
     celebration.burstTimer -= dt;
     if (celebration.burstTimer <= 0) {
       celebration.burstTimer = 0.42;
-      spawnFirework(rand(250, 1040), rand(130, 300));
-      spawnFirework(rand(180, 1100), rand(90, 220), "far");
+      const cx = (VIEW.w - VIEW_MIN_W) / 2;
+      spawnFirework(cx + rand(250, 1040), rand(130, 300));
+      spawnFirework(rand(180, VIEW.w - 180), rand(90, 220), "far");
     }
     updateFireworks(dt);
     if (celebration.timer <= 0) {
@@ -2363,7 +2373,7 @@
     { id: "mid-hills", factor: 0.42 },
     { id: "near-bushes", factor: 0.7 }
   ];
-  const PARALLAX_TILE_W = VIEW.w;
+  const PARALLAX_TILE_W = 1280; // döşeme genişliği sabit; geniş görünümde yeterli sayıda döşeme çizilir
   // Zemin platformları dünyanın her yerinde y ≥ 650 bölgesini örter; arka plan bu çizgiye kadar
   // çizilir. Böylece görünmeyen alan boyanmaz (telefonda doldurma maliyeti düşer).
   const BACKDROP_BOTTOM = 656;
@@ -2394,7 +2404,9 @@
   function silhouette(g, fn, bottom) {
     g.beginPath();
     g.moveTo(0, bottom);
-    for (let x = 0; x <= PARALLAX_TILE_W; x += 6) g.lineTo(x, fn(x));
+    for (let x = 0; x < PARALLAX_TILE_W; x += 6) g.lineTo(x, fn(x));
+    // Son nokta tam döşeme kenarında: aksi hâlde birleşim yerinde ince boşluk kalır
+    g.lineTo(PARALLAX_TILE_W, fn(PARALLAX_TILE_W));
     g.lineTo(PARALLAX_TILE_W, bottom);
     g.closePath();
   }
@@ -2415,7 +2427,7 @@
 
   function getParallax() {
     const scale = Math.min(cacheScale(), 1.25);
-    const key = `${state.level}|${scale}`;
+    const key = `${state.level}|${scale}|${VIEW.w}`;
     if (!parallaxCache || parallaxCache.key !== key) parallaxCache = buildParallax(state.level, scale, key);
     return parallaxCache;
   }
@@ -2439,7 +2451,9 @@
     const rnd = seededRandom(level * 31337);
 
     // 1) Gökyüzü, ışık kaynağı, yıldızlar (ekrana sabit)
-    const sky = makeCanvas(VIEW.w * scale, SKY_BOTTOM * scale);
+    // Gökyüzü görünümden 4 px geniş üretilir: yuvarlanan kenar sütunu yarı saydam kalmasın
+    const skyW = VIEW.w + 4;
+    const sky = makeCanvas(skyW * scale, SKY_BOTTOM * scale);
     const sg = sky.getContext("2d");
     sg.scale(scale, scale);
     const grad = sg.createLinearGradient(0, 0, 0, VIEW.h);
@@ -2447,7 +2461,7 @@
     grad.addColorStop(0.55, theme.skyMid);
     grad.addColorStop(1, theme.skyBottom);
     sg.fillStyle = grad;
-    sg.fillRect(0, 0, VIEW.w, VIEW.h);
+    sg.fillRect(0, 0, skyW, VIEW.h);
     for (let i = 0; i < atmo.stars; i += 1) {
       sg.fillStyle = `rgba(255, 255, 255, ${0.35 + rnd() * 0.5})`;
       const r = 0.8 + rnd() * 1.4;
@@ -2460,7 +2474,7 @@
     glow.addColorStop(0, atmo.glow);
     glow.addColorStop(1, "rgba(255, 255, 255, 0)");
     sg.fillStyle = glow;
-    sg.fillRect(0, 0, VIEW.w, VIEW.h);
+    sg.fillRect(0, 0, skyW, VIEW.h);
     sg.fillStyle = L.kind === "moon" ? "#f4f1ff" : theme.sun;
     sg.beginPath();
     sg.arc(L.x, L.y, L.r, 0, Math.PI * 2);
@@ -2674,29 +2688,29 @@
     ag.fillStyle = ab;
     ag.fillRect(0, 0, 4, 80);
 
-    return { key, level, atmosphere: atmo.name, sky, layers, abyss };
+    return { key, level, atmosphere: atmo.name, sky, skyW, layers, abyss };
   }
 
   function drawParallax() {
     const bg = getParallax();
-    ctx.drawImage(bg.abyss, 0, ABYSS_TOP, VIEW.w, VIEW.h - ABYSS_TOP);
-    ctx.drawImage(bg.sky, 0, 0, VIEW.w, SKY_BOTTOM);
+    // +2: tuval arka belleği yuvarlanınca en sağ piksel sütunu boş kalmasın
+    ctx.drawImage(bg.abyss, 0, ABYSS_TOP, VIEW.w + 2, VIEW.h - ABYSS_TOP);
+    ctx.drawImage(bg.sky, 0, 0, bg.skyW, SKY_BOTTOM);
     for (const layer of bg.layers) {
       const travel = state.cameraX * layer.factor + state.fx.time * layer.drift;
       const offset = -(((travel % PARALLAX_TILE_W) + PARALLAX_TILE_W) % PARALLAX_TILE_W);
       if (layer.sprites) {
         for (const sp of layer.sprites) {
-          let x = sp.x + offset;
-          if (x + sp.w < 0) x += PARALLAX_TILE_W;
-          if (x > VIEW.w) continue;
-          ctx.drawImage(sp.canvas, x, sp.y, sp.w, sp.h);
-          if (x + PARALLAX_TILE_W < VIEW.w) ctx.drawImage(sp.canvas, x + PARALLAX_TILE_W, sp.y, sp.w, sp.h);
+          for (let x = sp.x + offset - PARALLAX_TILE_W; x < VIEW.w; x += PARALLAX_TILE_W) {
+            if (x + sp.w > 0) ctx.drawImage(sp.canvas, x, sp.y, sp.w, sp.h);
+          }
         }
         continue;
       }
-      // Döşemeler 1 px üst üste biner: kesirli piksel sınırında açık renkli dikiş çizgisi oluşmaz.
-      ctx.drawImage(layer.canvas, offset, layer.y, PARALLAX_TILE_W + 1, layer.h);
-      ctx.drawImage(layer.canvas, offset + PARALLAX_TILE_W - 1, layer.y, PARALLAX_TILE_W + 1, layer.h);
+      // Döşemeler görünüm genişliği boyunca tekrarlanır ve 1 px üst üste biner (dikiş çizgisi olmaz).
+      for (let x = offset; x < VIEW.w; x += PARALLAX_TILE_W - 1) {
+        ctx.drawImage(layer.canvas, x, layer.y, PARALLAX_TILE_W + 1, layer.h);
+      }
     }
   }
 
@@ -3234,7 +3248,7 @@
     drawFireworks("far");
     ctx.globalAlpha = 0.84;
     ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
-    roundRect(360, 248, 560, 156, 8);
+    roundRect(360 + (VIEW.w - VIEW_MIN_W) / 2, 248, 560, 156, 8);
     ctx.fill();
     ctx.strokeStyle = "rgba(35, 47, 74, 0.16)";
     ctx.lineWidth = 2;
@@ -3384,7 +3398,7 @@
     if (state.bossCelebration) return;
     if (!state.boss.active && !state.boss.defeated) return;
     const ratio = Math.max(0, state.boss.health / BOSS_MAX_HEALTH);
-    const x = 500;
+    const x = 500 + (VIEW.w - VIEW_MIN_W) / 2;
     const y = 18;
     ctx.save();
     ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
@@ -3981,12 +3995,48 @@
 
   /* ---------- Canvas ölçekleme (fizik 1280x720'de kalır) ---------- */
 
+  /* ---------- Uyarlanabilir görünüm: ekranı esnetmeden doldur ----------
+   * Mantıksal yükseklik 720 sabit. Mantıksal genişlik = 720 × ekranGenişliği / ekranYüksekliği,
+   * [1280, 1680] aralığında. Canvas CSS boyutu mantıksal oranla birebir aynıdır (X ve Y ölçeği eşit).
+   * - 16:9'dan geniş ekran (telefon yatay): ekranın tamamı dolar.
+   * - 16:9'dan dar ekran (tablet, masaüstü): genişlik dolar, üst/alt sahne rengiyle birleşir.
+   * - 21:9'dan geniş ekran: yükseklik dolar, kenarlar sahne rengiyle birleşir. */
+  function layoutViewport() {
+    const rect = stage.getBoundingClientRect();
+    const availW = rect.width;
+    const availH = rect.height;
+    if (availW <= 0 || availH <= 0) return;
+    const logicalW = Math.round(Math.max(VIEW_MIN_W, Math.min(VIEW_MAX_W, (VIEW.h * availW) / availH)));
+    const scale = Math.min(availW / logicalW, availH / VIEW.h);
+    const cssW = logicalW * scale;
+    const cssH = VIEW.h * scale;
+    VIEW.w = logicalW;
+    gameShell.style.setProperty("--shell-w", `${cssW}px`);
+    gameShell.style.setProperty("--shell-h", `${cssH}px`);
+    // Kamera dünya dışını göstermesin (görünüm genişleyince sınır yeniden hesaplanır)
+    state.cameraX = Math.max(0, Math.min(WORLD.w - VIEW.w, state.cameraX));
+    resizeCanvas();
+  }
+
+  // Letterbox alanı sahneyle kesintisiz birleşsin: üst gökyüzü, alt toprak rengi (seviyeye göre).
+  function applySceneColors() {
+    const theme = currentTheme();
+    stage.style.setProperty("--scene-top", theme.skyTop);
+    stage.style.setProperty("--scene-bottom", theme.dirtBottom);
+  }
+
   function resizeCanvas() {
     const rect = canvas.getBoundingClientRect();
     if (rect.width <= 0) return;
     // DPR 2 ile sınırlı: 3x ekranlarda görüntü keskin kalır ama düşük güçlü telefonlar yorulmaz.
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const scale = Math.max(0.5, Math.min(MAX_RENDER_SCALE, (rect.width * dpr) / VIEW.w));
+    let scale = Math.max(0.5, Math.min(MAX_RENDER_SCALE, (rect.width * dpr) / VIEW.w));
+    // Geniş (16:9'dan geniş) görünümde piksel bütçesi: ekranın tamamı çizildiği için arka bellek
+    // büyür; bütçe önceki 16:9 telefon maliyetine eşitlenir (performans korunur, keskinlik ~%10 azalır).
+    if (VIEW.w > VIEW_MIN_W) {
+      const pixels = VIEW.w * scale * VIEW.h * scale;
+      if (pixels > WIDE_PIXEL_BUDGET) scale = Math.max(0.5, scale * Math.sqrt(WIDE_PIXEL_BUDGET / pixels));
+    }
     const rounded = Math.round(scale * 100) / 100;
     if (rounded === state.renderScale && canvas.width === Math.round(VIEW.w * rounded)) return;
     state.renderScale = rounded;
@@ -3995,9 +4045,11 @@
   }
 
   if (window.ResizeObserver) {
+    new ResizeObserver(layoutViewport).observe(stage);
     new ResizeObserver(resizeCanvas).observe(canvas);
   }
-  window.addEventListener("resize", resizeCanvas);
+  window.addEventListener("resize", layoutViewport);
+  window.addEventListener("orientationchange", layoutViewport);
 
   /* ---------- Ekran klavyesi: görünür yüksekliği CSS'e aktar ---------- */
 
@@ -4020,7 +4072,8 @@
   applySoundUi();
   applyMotionUi();
   updateHud();
-  resizeCanvas();
+  layoutViewport();
+  applySceneColors();
   updateVisualViewport();
   // autostart=1 test/debug içindir: tanıtım atlanır.
   if (new URLSearchParams(window.location.search).get("autostart") === "1") {
@@ -4071,6 +4124,7 @@
       fx: state.fx
     },
     levelData: LEVEL_DATA,
+    view: VIEW,
     test: {
       rectsOverlap,
       setQuestionSeed,

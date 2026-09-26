@@ -125,30 +125,24 @@ kbd {
 
 /* ---------- Sahne ve oyun alanı ---------- */
 
+/* Sahne ekranın dört kenarına kadar uzanır (güvenli alan dahil). Oyun alanının boyutu JS'de
+   (layoutViewport) mantıksal oranla birebir hesaplanır; boş kalan alan sahne rengiyle birleşir. */
 .stage {
   position: fixed;
   inset: 0;
   display: grid;
   place-items: center;
-  padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);
+  overflow: hidden;
+  background: linear-gradient(var(--scene-top, #70d4ff) 0 50%, var(--scene-bottom, #7a4a2d) 50% 100%);
 }
 
 .game-shell {
-  --avail-w: calc(100vw - var(--safe-l) - var(--safe-r));
-  --avail-h: calc(var(--vh) - var(--safe-t) - var(--safe-b));
   position: relative;
-  width: min(var(--avail-w), calc(var(--avail-h) * 16 / 9));
-  height: min(var(--avail-h), calc(var(--avail-w) * 9 / 16));
+  width: var(--shell-w, 100vw);
+  height: var(--shell-h, var(--vh));
   background: #7fd7ff;
-  box-shadow: var(--shadow-2);
   overflow: hidden;
   touch-action: none;
-}
-
-@media (min-width: 1100px) and (min-height: 700px) {
-  .game-shell {
-    border-radius: var(--radius-m);
-  }
 }
 
 canvas {
@@ -165,8 +159,8 @@ canvas {
 .hud {
   position: absolute;
   z-index: 5;
-  top: 16px;
-  left: 18px;
+  top: calc(16px + var(--safe-t));
+  left: calc(18px + var(--safe-l));
   display: flex;
   gap: 8px;
   align-items: center;
@@ -252,8 +246,8 @@ canvas {
 .corner-actions {
   position: absolute;
   z-index: 6;
-  top: 16px;
-  right: 18px;
+  top: calc(16px + var(--safe-t));
+  right: calc(18px + var(--safe-r));
   display: flex;
   gap: 8px;
 }
@@ -292,8 +286,8 @@ canvas {
 .controls {
   position: absolute;
   z-index: 5;
-  right: 18px;
-  bottom: 16px;
+  right: calc(18px + var(--safe-r));
+  bottom: calc(16px + var(--safe-b));
   display: flex;
   gap: 8px;
   align-items: center;
@@ -410,12 +404,8 @@ canvas {
   transition: border-color 120ms ease, background-color 120ms ease;
 }
 
-@supports ((-webkit-backdrop-filter: blur(4px)) or (backdrop-filter: blur(4px))) {
-  .joystick-base {
-    -webkit-backdrop-filter: blur(4px);
-    backdrop-filter: blur(4px);
-  }
-}
+/* Arka plan bulanıklaştırılmaz: geniş ekranda başlangıçta joystick'in arkasında kalan karakter
+   yarı saydam tabanın içinden net görünür. */
 
 .joystick-knob {
   position: absolute;
@@ -1590,8 +1580,8 @@ dialog {
 
 @media (max-width: 1179px), (max-height: 663px) {
   .hud {
-    top: 10px;
-    left: 10px;
+    top: calc(10px + var(--safe-t));
+    left: calc(10px + var(--safe-l));
     gap: 6px;
   }
 
@@ -1652,8 +1642,8 @@ dialog {
   }
 
   .corner-actions {
-    top: 10px;
-    right: 10px;
+    top: calc(10px + var(--safe-t));
+    right: calc(10px + var(--safe-r));
   }
 
   .icon-button {
@@ -1663,16 +1653,16 @@ dialog {
   }
 
   .controls {
-    right: 10px;
-    bottom: 10px;
+    right: calc(10px + var(--safe-r));
+    bottom: calc(10px + var(--safe-b));
   }
 }
 
 /* Telefon (yatay): HUD 2x2 ızgara, boss can çubuğuyla çakışmaz */
 @media (max-width: 759px), (max-height: 427px) {
   .hud {
-    top: 6px;
-    left: 6px;
+    top: calc(6px + var(--safe-t));
+    left: calc(8px + var(--safe-l));
     display: grid;
     grid-template-columns: auto auto;
     gap: 4px;
@@ -1708,8 +1698,8 @@ dialog {
   }
 
   .corner-actions {
-    top: 6px;
-    right: 6px;
+    top: calc(6px + var(--safe-t));
+    right: calc(8px + var(--safe-r));
   }
 
   .icon-button {
