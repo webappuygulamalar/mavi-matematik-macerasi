@@ -16,4 +16,5 @@
 - Gerçek iPhone/iPad/Android cihazda manuel test yapılmadı; doğrulama Playwright Chromium mobil emülasyonuyla yapıldı.
 - Kompakt HUD'daki kalkan simgesi (🛡) emoji olduğu için cihaza göre farklı görünebilir.
 - (Sprint 2) Gerçek cihaz sonuçları REAL_DEVICE_TEST_CHECKLIST.md içinde henüz boş; bütün maddeler "Yapılmadı".
-- (Sprint 2) GitHub Actions workflow hazır ama repo/remote olmadığı için hiç çalıştırılmadı.
+- Oyun https://webappuygulamalar.github.io/mavi-matematik-macerasi/ adresinde yayında; canlı adres yalnızca masaüstü tarayıcı emülasyonuyla doğrulandı.
+- GitHub Actions, kullanılan action sürümleri için Node.js 20 kullanımdan kalkma uyarısı veriyor (şimdilik yalnızca uyarı).
