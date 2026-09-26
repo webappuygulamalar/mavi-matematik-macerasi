@@ -20,34 +20,34 @@ Bu liste **yalnızca gerçek cihazla** doldurulur. Bilgisayardaki emülasyon (Pl
 
 ## Test adımları (her cihazda aynı sıra)
 
-Adım 28–43 Sprint 3C (kayıt, duraklatma, ayarlar, kurulum ve güncelleme), adım 44–47 Sprint 3C.1 (tam ekran), 48–50 Sprint 3C.2 (başlangıç noktası) içindir.
+Adım 28–43 Sprint 3C (kayıt, duraklatma, ayarlar, kurulum ve güncelleme), adım 44–47 Sprint 3C.1 (tam ekran), 48–50 Sprint 3C.2 (başlangıç noktası), 51–60 sürüm adayı 1.3.0-rc.1 (tam macera, kesintiler, güncelleme) içindir.
 
 | No | Adım | Beklenen |
 |----|------|----------|
-| 1 | HTTPS adresini tarayıcıda aç | Başlangıç ekranı gelir: "Mavi’nin Matematik Macerası", "Oyuna Başla", ses düğmesi |
+| 1 | HTTPS adresini tarayıcıda aç | Başlangıç ekranı gelir: "Mavi’nin Matematik Macerası", "Yeni Macera", "Nasıl Oynanır", "Ayarlar" |
 | 2 | Cihazı **dikey** tut | "Cihazını yan çevir" uyarısı çıkar, oyun ilerlemez |
 | 3 | Cihazı **yatay** çevir | Uyarı kaybolur, oyun alanı ekrana taşmadan sığar |
 | 4 | Çentik / kamera deliği / ana ekran çizgisi kontrolü | Puan, kalp, kalkan, seviye, ses düğmesi ve dokunmatik tuşlar çentiğin veya kenarın altında kalmaz |
-| 5 | "Oyuna Başla"ya dokun | Oyun başlar; başlamadan önce karakter hareket etmemişti |
+| 5 | "Yeni Macera"ya, sonra seviye tanıtımına dokun | Oyun başlar; başlamadan önce karakter hareket etmemişti |
 | 6 | Sol alttaki yuvarlak joystick'i sağa ve sola sürükle | Az sürükleyince yavaş, kenara kadar sürükleyince hızlı yürür; ok düğmesi görünmez |
 | 7 | "Zıpla"ya dokun | Karakter zıplar |
 | 8 | Bir parmakla joystick'i sağa sürüklerken diğer parmakla zıpla | Karakter koşarak zıplar (çoklu dokunma) |
 | 9 | Joystick'i bırak; ayrıca merkezde hafifçe oynat | Bırakınca topuz merkeze döner ve karakter hemen durur; merkezdeki küçük oynamada karakter kıpırdamaz |
 | 10 | Joystick'e ve Zıpla'ya uzun bas / hızlı çift dokun; joystick'i ekran dışına doğru sürükle | Kopyala menüsü, büyüteç veya yakınlaştırma çıkmaz; sayfa kaymaz; joystick takılı kalmaz |
 | 11 | İlk dokunuştan sonra altın topla | Ses duyulur (iOS'ta özellikle kontrol et) |
-| 12 | Ses düğmesiyle sesi kapat / aç | Ses kapanır / açılır; tercih uygulama yeniden açılınca hatırlanır |
+| 12 | Ayarlar → Ses ile sesi kapat / aç | Ses kapanır / açılır; tercih uygulama yeniden açılınca hatırlanır |
 | 13 | Bir soru kutusuna çarp | Soru penceresi açılır, **telefonun kendi klavyesi açılmaz**, ekrandaki sayı tuşları görünür |
 | 14 | Joystick'i sürüklerken bir soru kutusuna çarp | Soru açılınca karakter durur, joystick sıfırlanır |
 | 15 | Sayı tuşlarıyla iki basamaklı cevap yaz, "Sil" ve "Temizle"yi dene | Rakamlar doğru yazılır, Sil son rakamı, Temizle tümünü siler |
 | 16 | Doğru cevap ver, "Cevabı Kontrol Et" | "Doğru!" yazar, +50 puan, kalkan açılır, pencere kapanır |
-| 17 | Başka bir kutuda yanlış cevap ver | "Yanlış cevap" yazar, puan eklenmez, pencere kapanır |
-| 18 | Bir soruyu 30 saniye cevapsız bırak | "Süre bitti" yazar, pencere kapanır |
+| 17 | Başka bir kutuda yanlış cevap ver | "Bu sefer olmadı. Doğrusu …" yazar, puan eklenmez, pencere kapanır |
+| 18 | Bir soruyu 30 saniye cevapsız bırak | "Süre doldu. Doğrusu …" yazar, pencere kapanır |
 | 19 | Soru kapandıktan sonra joystick | Karakter yine hareket eder |
 | 20 | Tüm canları kaybet, oyuncu adı yaz, "Yeniden Başlat" | Skor tablosuna eklenir, oyun baştan başlar |
-| 21 | Boss testi: adresin sonuna `?boss=1&level=1` ekleyip aç | Boss arenası açılır; düşen kutudaki soruyu doğru cevaplayınca roketler boss'a gider, can çubuğu azalır |
+| 21 | Boss testi (yalnızca test adresi, oyuncu özelliği değil): adresin sonuna `?boss=1&level=1` ekleyip aç | Boss arenası açılır; düşen kutudaki soruyu doğru cevaplayınca roketler boss'a gider, can çubuğu azalır |
 | 22 | **Ana ekrana kur** (aşağıdaki cihaz notlarına bak) | Ana ekranda Mavi ikonu görünür |
 | 23 | Ana ekran ikonundan aç | Adres çubuğu olmadan (standalone) açılır, ekran yatay |
-| 24 | Uygulamayı tamamen kapat (uygulama değiştiriciden kaydır) ve tekrar aç | Başlangıç ekranında "En iyi skor" görünür, skor korunmuş |
+| 24 | Uygulamayı tamamen kapat (uygulama değiştiriciden kaydır) ve tekrar aç | Bir sonraki oyun sonunda "En Yüksek 10" listesinde önceki skor korunmuş |
 | 25 | Uygulamayı bir kez açıp kapattıktan sonra **uçak modunu aç**, ana ekran ikonundan aç | Oyun internetsiz açılır, görseller görünür, oynanır |
 | 26 | Uçak modunda bir soru çöz | Sayı tuş takımı ve cevap kontrolü çalışır |
 | 27 | Genel görünüm | Taşan yazı, kesilen düğme veya okunamayacak kadar küçük metin yok |
@@ -74,6 +74,16 @@ Adım 28–43 Sprint 3C (kayıt, duraklatma, ayarlar, kurulum ve güncelleme), a
 | 48 | Her seviyenin başında Mavi'ye bak (çentikli telefonda da) | Mavi tamamen görünür; joystick'in arkasında değil, arada boşluk var |
 | 49 | Başlangıçta hiç dokunmadan birkaç saniye bekle | Puan 0 kalır; coin toplanmaz, soru açılmaz |
 | 50 | Çukura düş (ör. Seviye 4 başı), Bölümü Yeniden Başlat, Devam Et | Her üçünde de Mavi aynı başlangıç noktasına döner |
+| 51 | **Tam macera:** Yeni Macera ile dört seviyeyi ve dört boss'u bitir | Her seviye sonunda özet; sonda "Macera Tamamlandı", toplam skor ve genel doğruluk görünür |
+| 52 | Finalde ad yaz, "Yeniden Oyna" | Skor "En Yüksek 10"a girer; oyun Seviye 1'den, skor 0 ile başlar |
+| 53 | Soru açıkken uygulamayı arka plana al, 1 dakika bekle, geri dön | Soru aynen açık; süre arka planda azalmamış; cevap tek kez sayılır |
+| 54 | Boss savaşı sırasında arka plana al, geri dön | Oyun duraklatılmış bekler; can kaybı yok; Devam Et ile sürer |
+| 55 | Seviye özeti açıkken uygulamayı tamamen kapat, tekrar aç | "Devam Et" bir sonraki seviyeyi gösterir; skor özetteki toplamla aynı |
+| 56 | Uçak modunda "Devam Et" | Kayıtlı seviye açılır, bütün görseller görünür |
+| 57 | Özel/gizli sekmede oyna ve oyunu bitir | Oyun çökmez; skor kaydedilemezse "Skor kaydedilemedi." yazar |
+| 58 | Önceki sürüm (1.2.x) kuruluyken güncelleme | "Yeni sürüm hazır"; "Şimdi Güncelle" bir kez yeniler; Devam Et, ayarlar ve skor tablosu korunur |
+| 59 | Ses kapalıyken yanlış cevap ver ve hasar al | Yazılı geri bildirim ("Bu sefer olmadı…", "Dikkat!") ve kalp sayısı görünür |
+| 60 | 20–30 dakika kesintisiz oyna | Belirgin yavaşlama, takılma, ses bozulması veya aşırı ısınma yok |
 
 ### Cihaza kurulum notları
 
@@ -147,6 +157,16 @@ Her cihaz grubu için ayrı doldur. Aynı gruptan birden fazla cihaz denenirse f
 | 48 | Yapılmadı | |
 | 49 | Yapılmadı | |
 | 50 | Yapılmadı | |
+| 51 | Yapılmadı | |
+| 52 | Yapılmadı | |
+| 53 | Yapılmadı | |
+| 54 | Yapılmadı | |
+| 55 | Yapılmadı | |
+| 56 | Yapılmadı | |
+| 57 | Yapılmadı | |
+| 58 | Yapılmadı | |
+| 59 | Yapılmadı | |
+| 60 | Yapılmadı | |
 
 ### 2) iPad / Safari
 
@@ -210,6 +230,16 @@ Her cihaz grubu için ayrı doldur. Aynı gruptan birden fazla cihaz denenirse f
 | 48 | Yapılmadı | |
 | 49 | Yapılmadı | |
 | 50 | Yapılmadı | |
+| 51 | Yapılmadı | |
+| 52 | Yapılmadı | |
+| 53 | Yapılmadı | |
+| 54 | Yapılmadı | |
+| 55 | Yapılmadı | |
+| 56 | Yapılmadı | |
+| 57 | Yapılmadı | |
+| 58 | Yapılmadı | |
+| 59 | Yapılmadı | |
+| 60 | Yapılmadı | |
 
 ### 3) Android telefon / Chrome
 
@@ -272,6 +302,16 @@ Her cihaz grubu için ayrı doldur. Aynı gruptan birden fazla cihaz denenirse f
 | 48 | Yapılmadı | |
 | 49 | Yapılmadı | |
 | 50 | Yapılmadı | |
+| 51 | Yapılmadı | |
+| 52 | Yapılmadı | |
+| 53 | Yapılmadı | |
+| 54 | Yapılmadı | |
+| 55 | Yapılmadı | |
+| 56 | Yapılmadı | |
+| 57 | Yapılmadı | |
+| 58 | Yapılmadı | |
+| 59 | Yapılmadı | |
+| 60 | Yapılmadı | |
 
 ### 4) Android tablet / Chrome
 
@@ -334,6 +374,16 @@ Her cihaz grubu için ayrı doldur. Aynı gruptan birden fazla cihaz denenirse f
 | 48 | Yapılmadı | |
 | 49 | Yapılmadı | |
 | 50 | Yapılmadı | |
+| 51 | Yapılmadı | |
+| 52 | Yapılmadı | |
+| 53 | Yapılmadı | |
+| 54 | Yapılmadı | |
+| 55 | Yapılmadı | |
+| 56 | Yapılmadı | |
+| 57 | Yapılmadı | |
+| 58 | Yapılmadı | |
+| 59 | Yapılmadı | |
+| 60 | Yapılmadı | |
 
 ---
 

@@ -12,7 +12,7 @@
   3. **Gün Batımı Kanyonu** — 100'e kadar işlemler, çarpım tablosu (2–9)
   4. **Ayışığı Zirvesi** — karışık işlemler, çarpma ağırlıklı
 - Seviye tanıtımı ve seviye sonu özeti (puan, coin, doğru/soru, doğruluk)
-- **Devam Et:** ilerleme her bölüm başında cihaza kaydedilir; uygulama kapanırsa aynı bölümün başından sürer
+- **Devam Et:** ilerleme her bölüm başında ve bölüm özeti açılınca cihaza kaydedilir; uygulama kapanırsa aynı bölümün başından (bölüm bittiyse bir sonrakinden) sürer
 - **Duraklatma:** sağ üstteki ⏸ düğmesi, masaüstünde <kbd>Esc</kbd> veya <kbd>P</kbd>; uygulama arka plana gidince otomatik
 - **Ayarlar:** ses ve hareket efektleri (Normal/Azaltılmış); ilk varsayılan cihazın "hareketi azalt" ayarından gelir
 - **Nasıl Oynanır** ekranı ve kurulum yardımı
@@ -28,7 +28,7 @@
 
 | | Masaüstü | Telefon / tablet |
 |---|---|---|
-| Sola / sağa | `A` / `D` veya ← / → | Sol alttaki ok düğmeleri |
+| Sola / sağa | `A` / `D` veya ← / → | Sol alttaki joystick (az sürükle: yavaş, kenara kadar: hızlı) |
 | Zıpla | `W`, ↑ veya Boşluk | Sağ alttaki "Zıpla" düğmesi |
 | Soru cevabı | Klavye ile rakam + Enter veya ekrandaki tuşlar | Ekrandaki sayı tuşları + "Cevabı Kontrol Et" |
 
@@ -48,11 +48,13 @@ Tarayıcı doğrudan kurulum sunmuyorsa başlangıç ekranında **Kurulum Yardı
 
 | Anahtar | İçerik |
 |---|---|
-| `mavi-matematik-save` | Bölüm başı kaydı: `version`, seviye, bölüm başındaki toplam skor ve genel istatistikler |
+| `mavi-matematik-save` | Kampanya kaydı: `version`, seviye, o bölümün başındaki toplam skor ve genel istatistikler |
 | `mavi-matematik-settings` | `version`, ses, hareket efektleri |
 | `mavi-matematik-high-scores` | En yüksek 10 skor |
 
-Bozuk veya eski sürüm veri yok sayılır; oyun varsayılanlarla açılır.
+Bozuk veya tanınmayan veri yok sayılır; oyun varsayılanlarla açılır. 1.2.x sürümlerinin verisi 1.3'te aynen okunur. Depolama kapalı veya doluysa oyun yine oynanır; yalnızca kayıt tutulamaz.
+
+**Gizlilik:** Oyuncu adı ve skorlar yalnızca bu cihazda saklanır, hiçbir sunucuya gönderilmez. Oyun yalnızca kendi dosyalarını yükler; analitik, reklam, izleyici, harici yazı tipi veya CDN yoktur.
 
 ## Geliştirme
 
@@ -63,7 +65,7 @@ npm install                 # test araçlarını kurar
 npm run serve               # http://127.0.0.1:8081 adresinde geliştirme sürümü
 ```
 
-Debug adresleri: `?level=3` doğrudan 3. seviyeyi açar; `?boss=1&level=1` boss arenasını açar (`level` 1–4); `?debug=1` debug panelini gösterir.
+Geliştirici/test adresleri (oyuncu özelliği değildir, oyunda bağlantısı yoktur): `?level=3` doğrudan 3. seviyeyi, `?boss=1&level=1` boss arenasını açar (`level` 1–4); `?debug=1` debug panelini, `?nosw=1` service worker olmadan açılışı sağlar.
 
 ### Seviye verisi
 
@@ -79,7 +81,7 @@ Build de bu doğrulamayı çalıştırır; geçersiz seviye verisiyle yayın pak
 
 ```bash
 npx playwright install chromium   # ilk seferde
-npm test                          # tüm testler (4 ekran boyutu + dist/ paketi)
+npm test                          # tüm testler (4 ekran boyutu + dist/ paketi; tam macera ve kesinti testleri dahil)
 npm run test:dist                 # yalnızca yayın paketi, PWA ve çevrimdışı testi
 ```
 
@@ -93,7 +95,7 @@ npm run preview:subpath     # alt dizinde yayını taklit eder (/mavi-matematik-
 
 `dist/` herhangi bir HTTPS statik barındırma servisine yüklenebilir. Service worker önbellek sürümü dosya içeriklerinden otomatik üretilir; her yeni build'de eski önbellek temizlenir.
 
-`main` dalına yapılan her push, GitHub Actions ile önce testleri çalıştırır; testler geçerse `dist/` paketini GitHub Pages'e yayınlar.
+`main` dalına yapılan her push, GitHub Actions ile önce testleri çalıştırır; testler geçerse `dist/` paketini GitHub Pages'e yayınlar. Sürüm yayın adımları için [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) dosyasına bakın.
 
 ## Proje yapısı
 

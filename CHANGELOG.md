@@ -1,5 +1,77 @@
 # Changelog
 
+## 2026-09-26 — Sürüm adayı 1.3.0-rc.1: kalite, kararlılık ve yayın denetimi
+
+Yeni oyun özelliği yok; yalnızca hata düzeltme, sağlamlaştırma, test ve belge.
+
+**Düzeltilen hatalar**
+- Seviye özeti açıkken sayfa yenilenir veya uygulama kapanırsa, tamamlanan bölüm kayıtta hâlâ yarım görünüyordu.
+  Devam Et aynı bölümü baştan oynatıyordu. Özet açılınca kayıt artık sonraki bölümü ve o anki skoru yazar;
+  puan iki kez sayılmaz.
+- Biten seslerin WebAudio düğümleri hedefe bağlı kalıyordu; artık çalma bitince bağlantıdan ayrılıyor.
+  Özellikle Safari'de uzun oyunda ses düğümü birikmesin diye.
+- Sayfa gizliyken (gizli sekmede kare üreten tarayıcılarda) oyun ve soru süresi ilerleyebiliyordu; artık duruyor.
+- Top-10 listesi yüklenirken de puana göre sıralanıyor (bozuk veya elle düzenlenmiş listede en yüksek skorlar kaybolmaz).
+- Kısa ekranlarda final penceresindeki ad kutusu 44 px'ti; en az 48 px dokunma hedefi.
+- Kaynak service worker'daki görsel listesinde `rockets.png` eksikti. Yayın paketindeki liste build tarafından zaten doğru üretiliyordu.
+
+**Çocuk kullanımı ve erişilebilirlik**
+- Yanlış cevap: "Yanlış cevap. Doğrusu X. Puan yok." → "Bu sefer olmadı. Doğrusu X. Sıradakini yaparsın!"
+- Süre dolunca doğru cevap da gösteriliyor: "Süre doldu. Doğrusu X. Sıradakini yaparsın!"
+- Ayarlar'daki seçili seçenek yalnızca renkle değil, ✓ işaretiyle de belli oluyor.
+
+**Testler**
+- Tam macera uçtan uca testi (`tests/release.spec.mjs`). Kapsam:
+  - Yeni Macera'dan dört seviyeyi gerçek fizik, soru, coin, düşman ve roketlerle boss'a kadar oynar;
+  - her sorunun seviyenin matematik profiline uyduğunu denetler;
+  - özet ve final ekranını, top-10 kaydını ve Yeniden Oyna'yı doğrular;
+  - puanın iki kez sayılmadığını ve yalnızca aynı kaynaktan GET isteği yapıldığını sınar.
+  - Masaüstü ve yatay telefonda koşar.
+- Kesinti testleri:
+  - bölüm ortasında yenileme;
+  - soru açıkken ve boss sırasında arka plana alma;
+  - arka plandan dönüşte zaman sıçraması;
+  - duraklatılmışken kapatma;
+  - özet açıkken yenileme;
+  - localStorage kapalı, dolu veya bozuk;
+  - 1.2.x verisi.
+- Erişilebilirlik testleri: kontrol adları, 48x48 hedefler, görünür klavye odağı, sessizde yazılı geri bildirim.
+- Dist testleri:
+  - çevrimdışı Devam Et;
+  - dört seviyenin bütün görselleri çevrimdışı;
+  - güncellemeden sonra kayıt, ayarlar ve top-10 korunuyor;
+  - toplam paket ≤ 4 MB.
+
+**Yayın ve CI**
+- Sürüm 1.3.0-rc.1; service worker önbelleği `mavi-matematik-1.3.0-rc.1-<özet>`.
+- GitHub Actions'ta resmi action'lar Node 24 sürümlerine yükseltildi. Sıra aynı: test → build → yayın.
+  Yükseltmeler: checkout v7, setup-node v7, setup-python v7, upload-artifact v7, configure-pages v6,
+  upload-pages-artifact v5, deploy-pages v5.
+- Çalıştırıcı `ubuntu-latest` yerine `ubuntu-24.04`. Ubuntu 26 geçişi (19 Ekim 2026) Playwright bağımlılıklarını
+  habersiz değiştirmesin diye.
+- 1.2.2 → 1.3.0-rc.1 service worker güncellemesi denendi:
+  - bildirim çıkıyor, kendiliğinden yenileme olmuyor;
+  - "Şimdi Güncelle" tam bir kez yeniliyor;
+  - eski önbellek siliniyor, oyuncu verisi korunuyor.
+- Yeni belge: `RELEASE_CHECKLIST.md`.
+
+**Ölçümler (headless Chromium, 4x yavaşlatılmış işlemci)**
+
+| Ekran | Koşu | Boss/kutlama | Tuval arka belleği |
+|---|---|---|---|
+| 844x390 DPR 3 | ~60 FPS, p95 ~17,7 ms | ~58,5 FPS | 1542x713 (4,2 MB) |
+| 915x412 | ~60 FPS, p95 ~17,5 ms | ~57,8 FPS | 1567x706 (4,2 MB) |
+| 852x393 çentik | ~60 FPS, p95 ~17,8 ms | ~58,5 FPS | 1545x713 (4,2 MB) |
+| 1440x900 | ~60 FPS | ~60 FPS | 1446x814 (4,5 MB) |
+| 1024x768 DPR 2 | ~29 FPS (1.2.2 ile aynı; 2x yavaşlatmada 59 FPS) | ~28 FPS | 2048x1152 (9 MB) |
+
+10 dakikalık uzun oyun simülasyonunda birikim görülmedi:
+- parçacıklar 180, havai fişekler en çok 222/260 ile sınırlı;
+- ses düğümleri 1,5 sn içinde sıfıra iniyor;
+- JS belleği ~2,5 MB'ta sabit; DOM düğümü ve dinleyici sayısı değişmiyor.
+
+Yayın paketi 3,73 MB, 20 dosya.
+
 ## 2026-09-26 — Sprint 3C.2: Başlangıçta Mavi joystick'in arkasında kalmasın (1.2.2)
 
 - Ortak başlangıç noktası `LEVEL_DATA.start.x` 90 → 350 (tek doğruluk kaynağı `level-data.js`;

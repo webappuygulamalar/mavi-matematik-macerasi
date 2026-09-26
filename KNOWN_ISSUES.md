@@ -1,31 +1,52 @@
-# Known Issues
+# Bilinen Sorunlar
 
-- Current player and enemy PNGs are single images, not final sprite sheets. Animation is simulated with procedural motion until final frame sets are supplied.
-- Browser verification has been performed on the available local browser path only; Edge and Firefox still need manual QA.
-- The first level is hard-coded in `game.js`; later phases should move level data into editable JSON.
-- Audio uses generated WebAudio tones as placeholders until final effects are provided.
-- Heart HUD and game-over logic are currently fixed to a maximum of three lives.
-- Levels 2, 3, and 4 currently reuse the extended level geometry with different palettes and faster enemies.
-- High scores are stored in the current browser only through localStorage.
-- Player animation now uses the cleaned sprite sheet for core movement, but some lower-row poses remain unused until the sheet is manually cleaned/cut more precisely.
-- Boss arena uses supplied boss images per level, while fire, three-rocket salvo, fireworks, and health-bar visuals remain procedural until final effect assets are supplied.
+Sürüm: **1.3.0-rc.1** (sürüm adayı). Aşağıdakilerin hiçbiri yayını engellemez; gerçek cihaz kabul testinde
+([REAL_DEVICE_TEST_CHECKLIST.md](REAL_DEVICE_TEST_CHECKLIST.md)) özellikle bakılacak noktalardır.
 
-## Sprint 1 (PWA) sonrası
+## Doğrulama kapsamı
 
-- Service worker ve kurulum yalnızca HTTPS veya localhost üzerinde çalışır; telefonda yerel ağ IP'si (http://192.168.x.x) ile açıldığında oyun çalışır ama çevrimdışı/kurulum olmaz.
-- Gerçek iPhone/iPad/Android cihazda manuel test yapılmadı; doğrulama Playwright Chromium mobil emülasyonuyla yapıldı.
-- Kompakt HUD'daki kalkan simgesi (🛡) emoji olduğu için cihaza göre farklı görünebilir.
-- (Sprint 2) Gerçek cihaz sonuçları REAL_DEVICE_TEST_CHECKLIST.md içinde henüz boş; bütün maddeler "Yapılmadı".
-- Oyun https://webappuygulamalar.github.io/mavi-matematik-macerasi/ adresinde yayında; canlı adres yalnızca masaüstü tarayıcı emülasyonuyla doğrulandı.
-- GitHub Actions, kullanılan action sürümleri için Node.js 20 kullanımdan kalkma uyarısı veriyor (şimdilik yalnızca uyarı).
-- (Sprint 3A) Sprite sheet'te 4 poz kullanılmıyor: 3. satırdaki önden duruş ve iki başparmak pozu ile 4. satırdaki başparmak ve çömelme pozunda pantolon ve bacak arası gömülü dama deseniyle bozulmuş. Bu yüzden iniş ve zıplama başlangıcı ayrı poz yerine mevcut kareler + hafif sıkışma ile gösteriliyor. Temiz bir çömelme/iniş pozu gelirse PLAYER_ANIMATIONS'a eklenebilir.
-- (Sprint 3A) Hasar için ayrı poz yok; havada zıplama pozu geriye eğilerek ve mevcut yanıp sönme ile kullanılıyor.
-- (Sprint 3A) Performans ölçümü headless Chromium'da (yazılım tabanlı boyama, 4x yavaşlatılmış işlemci) yapıldı; gerçek düşük güçlü telefonda ölçülmedi.
-- (Sprint 3B) Ana rota erişilebilirliği oyunun gerçek fiziğiyle adım adım test ediliyor; ancak tek bir çocuğun baştan sona kesintisiz oynadığı bir oturum otomatik olarak simüle edilmedi. Zorluk dengesi gerçek oyuncuyla denenmeli.
-- (Sprint 3B) Kanyon (Seviye 3) uzak silüetinde mesaların dik kenarları arasında yer yer 1–2 px'lik ince aralık görünebilir.
-- (Sprint 3C) Oyun bittiğinde (canlar tükenince) "Ana Menü" seçilirse bölüm başı kaydı korunur; "Devam Et" ile aynı bölüm yeniden oynanabilir. Bu durumda aynı maceradan skor tablosuna birden fazla kayıt girebilir.
-- (Sprint 3C) Önceki sürümü kurmuş cihazlarda eski sayfa kodu güncelleme bildirimini göstermez; yeni kod ilk açılışta ağdan gelir ve bildirim bir sonraki açılışta görünür (veya uygulama tamamen kapanınca yeni sürüm kendiliğinden devreye girer).
-- (Sprint 3C) Emoji simgeler (Nasıl Oynanır, kalkan) cihaza göre farklı görünebilir.
-- (Sprint 3C.2'de çözüldü) Başlangıçta Mavi'nin joystick'in arkasında kalması: başlangıç x=350'ye alındı.
-- (Sprint 3C.1) 21:9'dan geniş ekranlarda (ör. ultra geniş monitör) görünüm 1680 mantıksal pikselde sınırlanır; kenarlar sahne rengiyle dolar.
-- (Sprint 3C.1) Geniş telefonlarda çizim keskinliği performans için ~%10 düşürüldü (3x ekranlarda ~1,8x).
+- Otomatik testler ve performans ölçümleri Playwright Chromium (masaüstü ve mobil emülasyon) ile yapıldı.
+  Gerçek iPhone, iPad ve Android cihazda test yapılmadı; kontrol listesindeki bütün maddeler "Yapılmadı".
+- Firefox ve masaüstü Safari elle denenmedi.
+- Sekmenin arka plana alınması testlerde `visibilitychange` olayı taklit edilerek sınanır; gerçek cihazda
+  işletim sisteminin sayfayı dondurması veya kapatması ayrıca denenmeli.
+- Performans headless Chromium'da (yazılım tabanlı boyama, 4x yavaşlatılmış işlemci) ölçüldü. Tablet
+  boyutunda (1024x768, DPR 2) 4x yavaşlatmada ~29 FPS ölçülüyor. Bu değer 1.2.2 ile aynı; 2x yavaşlatmada 59 FPS.
+  Gerçek tablette akıcılık kontrol edilmeli.
+
+## Oyun
+
+- Oyun bittiğinde (canlar tükenince) "Ana Menü" seçilirse bölüm başı kaydı korunur; "Devam Et" ile aynı
+  bölüm yeniden oynanabilir. Bu durumda aynı maceradan skor tablosuna birden fazla kayıt girebilir.
+- Can sayısı en fazla 3 ile sabittir.
+- Sesler WebAudio ile üretilen kısa tonlardır. Gerçek ses dosyaları yoktur.
+- Skor tablosu yalnızca bu cihazdaki tarayıcıda tutulur; tarayıcı verisi silinirse kaybolur.
+  Gizli sekmede veya depolama kapalıyken oyun oynanır, ama kayıt ve skor tutulamaz ("Skor kaydedilemedi.").
+
+## Görsel
+
+- Sprite sheet'te 4 poz kullanılmıyor (bozuk dama deseni). İniş ve zıplama başlangıcı mevcut kareler ve
+  hafif sıkışma ile gösteriliyor; hasar için ayrı poz yok.
+- Kanyon (Seviye 3) uzak silüetinde mesaların dik kenarları arasında yer yer 1–2 px'lik ince aralık görünebilir.
+- Emoji simgeler (kalkan, Nasıl Oynanır) cihaza göre farklı görünebilir.
+- Geniş telefonlarda çizim keskinliği performans için ~%10 düşürüldü (3x ekranlarda ~1,8x).
+- 21:9'dan geniş ekranlarda görünüm 1680 mantıksal pikselde sınırlanır; kenarlar sahne rengiyle dolar.
+- Boss ateşi, roket salvosu, havai fişek ve can çubuğu çizimle üretilir (ayrı efekt görseli yok).
+
+## PWA ve yayın
+
+- Service worker ve kurulum yalnızca HTTPS veya localhost üzerinde çalışır. Yerel ağ adresi
+  (`http://192.168.x.x`) ile açılınca oyun çalışır, ama çevrimdışı açılış ve kurulum olmaz.
+- Önceki sürümü kurmuş cihazlarda eski sayfa kodu güncelleme bildirimini hemen göstermeyebilir. Yeni kod ilk
+  açılışta ağdan gelir; bildirim bir sonraki açılışta görünür. Uygulama tamamen kapanınca yeni sürüm
+  kendiliğinden devreye girer.
+- Lisans henüz belirlenmedi; depoda lisans dosyası yok.
+
+## Çözülenler
+
+- (1.3.0-rc.1) Seviye özeti açıkken sayfa kapanınca tamamlanan bölüm kayıtta görünmüyordu; Devam Et artık sonraki bölümden sürüyor.
+- (1.3.0-rc.1) Kısa ekranlarda final penceresindeki ad kutusu 44 px'ti; artık 48 px.
+- (1.3.0-rc.1) GitHub Actions'taki Node.js 20 kullanımdan kalkma uyarısı: resmi action'lar Node 24 sürümlerine yükseltildi.
+- (1.2.2) Başlangıçta Mavi'nin joystick'in arkasında kalması: başlangıç x=350.
+- (1.2.1) Geniş telefonlarda iki yanda boş şerit.
+- (Sprint 3B) Seviye verisi `game.js` içindeydi ve 2–4. seviyeler aynı geometriyi kullanıyordu: dört benzersiz seviye `level-data.js` dosyasında.
